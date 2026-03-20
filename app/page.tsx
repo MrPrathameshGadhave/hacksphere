@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import ttlogo from './utils/tt.jpeg';
 import dpgulogo from './utils/dpgu.jpeg';
+import Footer from "@/components/layout/Footer";
 import PublicHeader from "@/components/layout/PublicHeader";
 export default function HackSphereLandingPage() {
   const stats = [
@@ -551,59 +552,7 @@ export default function HackSphereLandingPage() {
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-[#E5E7EB] bg-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-4 lg:px-8">
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[#F8E9ED] ring-1 ring-[#A01C33]/10">
-                <Image
-                  src={ttlogo}
-                  alt="Tech Titans logo"
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div className="text-2xl font-black tracking-tight text-[#A01C33]">
-                HackSphere
-              </div>
-            </div>
-
-            <p className="mt-4 max-w-md text-sm leading-7 text-[#6B7280]">
-              A premium college hackathon platform proudly organized by Tech Titans
-              Technical Club of DPGU — built to celebrate innovation, execution,
-              and student leadership.
-            </p>
-            <p className="mt-4 text-sm font-semibold text-[#202225]">
-              Organized by Tech Titans Technical Club of DPGU
-            </p>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-[#A01C33]">
-              Quick Links
-            </h4>
-            <div className="mt-4 space-y-3 text-sm text-[#6B7280]">
-              <p>Home</p>
-              <p>About Hackathon</p>
-              <p>TechTitans</p>
-              <p>Register</p>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-[#A01C33]">
-              Connect
-            </h4>
-            <div className="mt-4 space-y-3 text-sm text-[#6B7280]">
-              <p>Email Placeholder</p>
-              <p>Instagram Placeholder</p>
-              <p>LinkedIn Placeholder</p>
-              <p>College Campus Placeholder</p>
-            </div>
-          </div>
-        </div>
-      </footer>
+       <Footer />
     </div>
   );
 }

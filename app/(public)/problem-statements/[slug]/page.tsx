@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { publicProblemStatements } from "@/lib/mock-problems";
 import PublicHeader from "@/components/layout/PublicHeader";
+import Footer from "@/components/layout/Footer";
 
 const difficultyStyles: Record<string, string> = {
   Easy: "bg-green-100 text-green-700",
@@ -209,6 +210,7 @@ export default async function ProblemStatementDetailsPage({
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }

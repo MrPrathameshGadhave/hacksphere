@@ -7,6 +7,7 @@ import ProblemCard from "@/components/problem-statements/ProblemCard";
 import ProblemPagination from "@/components/problem-statements/ProblemPagination";
 import { publicProblemStatements } from "@/lib/mock-problems";
 import PublicHeader from "@/components/layout/PublicHeader";
+import Footer from "@/components/layout/Footer";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -174,6 +175,7 @@ export default function ProblemStatementsPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }

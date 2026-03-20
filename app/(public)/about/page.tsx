@@ -13,6 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import PublicHeader from "@/components/layout/PublicHeader";
+import Footer from "@/components/layout/Footer";
+
 const stages = [
   {
     title: "Stage 1 — Online Screening Round",
@@ -361,6 +363,7 @@ export default function AboutHackathonPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }

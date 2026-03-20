@@ -16,6 +16,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import Footer from "@/components/layout/Footer";
 import PublicHeader from "@/components/layout/PublicHeader";
 
 const pillars = [
@@ -386,6 +387,7 @@ export default function TechTitansPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }
