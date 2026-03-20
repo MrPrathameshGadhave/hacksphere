@@ -130,7 +130,7 @@ export default function HackSphereLandingPage() {
       {/* soft overlay over watermark */}
       <div className="pointer-events-none fixed inset-0 z-[2] bg-[linear-gradient(to_bottom,rgba(246,247,251,0.76),rgba(246,247,251,0.58),rgba(246,247,251,0.78))]" />
 
-     <PublicHeader />
+     {/* <PublicHeader /> */}
 
       {/* HERO - COMPLETELY REDESIGNED */}
       <section id="home" className="relative z-10">

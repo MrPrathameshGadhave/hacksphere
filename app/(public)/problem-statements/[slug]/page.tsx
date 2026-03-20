@@ -35,7 +35,7 @@ export default async function ProblemStatementDetailsPage({
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
-              <PublicHeader />
+              {/* <PublicHeader /> */}
         
       {/* <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
