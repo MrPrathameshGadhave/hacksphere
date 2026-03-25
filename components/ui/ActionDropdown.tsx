@@ -39,7 +39,7 @@ export default function ActionDropdown({
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative z-20">
       <button
         onClick={() => setOpen((prev) => !prev)}
         className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
@@ -48,8 +48,7 @@ export default function ActionDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-[190px] rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)]">
-          <div className="space-y-1">
+<div className="absolute right-0 top-[calc(100%+8px)] z-[80] min-w-[190px] rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)]">          <div className="space-y-1">
             {items.map((item, index) => (
               <button
                 key={`${item.label}-${index}`}

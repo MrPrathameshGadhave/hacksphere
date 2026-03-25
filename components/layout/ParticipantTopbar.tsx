@@ -2,13 +2,104 @@
 
 import { Bell, Menu, Search } from "lucide-react";
 import ProfileDropdown from "@/components/layout/ProfileDropdown";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function ParticipantTopbar() {
+type CurrentUser = {
+  _id: string;
+  name: string;
+  email: string;
+  role: "participant" | "judge" | "admin";
+  college?: string;
+  avatar?: string;
+  isApproved?: boolean;
+};
+
+type AuthMeResponse = {
+  success: boolean;
+  user: CurrentUser;
+  message?: string;
+};
+
+type ParticipantTopbarProps = {
+  onMenuClick?: () => void;
+};
+
+function getInitials(name?: string) {
+  if (!name) return "HS";
+
+  const parts = name
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) return "HS";
+
+  return parts.map((part) => part[0]?.toUpperCase()).join("");
+}
+
+function getRoleLabel(role?: string) {
+  if (!role) return "Participant";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+export default function ParticipantTopbar({
+  onMenuClick,
+}: ParticipantTopbarProps) {
+  const router = useRouter();
+  const [user, setUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCurrentUser() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const data: AuthMeResponse = await response.json();
+
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Failed to fetch current user");
+        }
+
+        if (isMounted) {
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error("Participant topbar user fetch error:", error);
+      }
+    }
+
+    loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const profileName = user?.name || "Participant";
+  const profileRole = useMemo(() => getRoleLabel(user?.role), [user?.role]);
+  const profileInitials = useMemo(() => getInitials(user?.name), [user?.name]);
+
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur-md">
       <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-[#3B3C3E] lg:hidden">
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] lg:hidden"
+            aria-label="Open sidebar"
+          >
             <Menu className="h-5 w-5" />
           </button>
 
@@ -40,9 +131,9 @@ export default function ParticipantTopbar() {
           </button>
 
           <ProfileDropdown
-            name="Prathamesh"
-            role="Participant"
-            initials="PG"
+            name={profileName}
+            role={profileRole}
+            initials={profileInitials}
             profileHref="/participant/profile"
           />
         </div>

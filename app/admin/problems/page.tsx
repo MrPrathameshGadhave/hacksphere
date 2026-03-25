@@ -1,470 +1,984 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Archive,
+  CalendarDays,
   CheckCircle2,
   Eye,
+  FileText,
   Filter,
   Layers3,
-  Lightbulb,
-  MoreHorizontal,
+  PencilLine,
   Plus,
   Search,
   Sparkles,
-  Target,
-  XCircle,
+  Trash2,
+  X,
 } from "lucide-react";
-import ActionDropdown from "@/components/ui/ActionDropdown";
+import ProblemFormModal, {
+  ProblemDifficulty,
+  ProblemFormValues,
+  ProblemStatus,
+} from "@/components/modals/ProblemFormModal";
 
-type ProblemStatus = "Published" | "Draft" | "Archived";
-type ProblemDifficulty = "Easy" | "Medium" | "Hard";
-
-type Problem = {
+type ProblemItem = {
   id: string;
   title: string;
+  slug: string;
   category: string;
   difficulty: ProblemDifficulty;
   status: ProblemStatus;
   shortDescription: string;
+  fullDescription: string;
   suggestedTechnologies: string[];
+  submissionRequirements: string[];
   teamsInterested: number;
+  isActive: boolean;
   createdAt: string;
+  updatedAt: string;
 };
 
-const problems: Problem[] = [
-  {
-    id: "p1",
-    title: "Smart Education Engagement Platform",
-    category: "Education",
-    difficulty: "Medium",
-    status: "Published",
-    shortDescription:
-      "Build a platform that improves student engagement, attendance tracking, and personalized learning support.",
-    suggestedTechnologies: ["Next.js", "AI", "Analytics"],
-    teamsInterested: 14,
-    createdAt: "17 Mar 2026",
-  },
-  {
-    id: "p2",
-    title: "Digital Healthcare Support System",
-    category: "Healthcare",
-    difficulty: "Hard",
-    status: "Published",
-    shortDescription:
-      "Create a solution for patient support, digital records access, or medical service coordination.",
-    suggestedTechnologies: ["Cloud", "Database", "Web App"],
-    teamsInterested: 11,
-    createdAt: "17 Mar 2026",
-  },
-  {
-    id: "p3",
-    title: "Smart City Issue Reporting",
-    category: "Smart City",
-    difficulty: "Medium",
-    status: "Published",
-    shortDescription:
-      "Design a platform for reporting, tracking, and resolving public infrastructure issues.",
-    suggestedTechnologies: ["Maps", "Dashboard", "Mobile UI"],
-    teamsInterested: 9,
-    createdAt: "16 Mar 2026",
-  },
-  {
-    id: "p4",
-    title: "Women Safety Emergency Assistant",
-    category: "Social Impact",
-    difficulty: "Hard",
-    status: "Draft",
-    shortDescription:
-      "Build an emergency-focused safety assistant with alerting and fast-access support features.",
-    suggestedTechnologies: ["Realtime", "Location", "Notifications"],
-    teamsInterested: 0,
-    createdAt: "16 Mar 2026",
-  },
-  {
-    id: "p5",
-    title: "Green Innovation Tracker",
-    category: "Sustainability",
-    difficulty: "Easy",
-    status: "Archived",
-    shortDescription:
-      "Create a sustainability tracking tool for habits, goals, and impact visibility.",
-    suggestedTechnologies: ["Dashboard", "Reports", "Charts"],
-    teamsInterested: 3,
-    createdAt: "15 Mar 2026",
-  },
-];
-
-const difficultyStyles: Record<ProblemDifficulty, string> = {
-  Easy: "bg-green-100 text-green-700",
-  Medium: "bg-amber-100 text-amber-700",
-  Hard: "bg-red-100 text-red-700",
+type ProblemsResponse = {
+  success: boolean;
+  problems: ProblemItem[];
+  message?: string;
 };
+
+type ProblemResponse = {
+  success: boolean;
+  problem: ProblemItem;
+  message?: string;
+};
+
+type DeleteResponse = {
+  success: boolean;
+  message?: string;
+};
+
+type FormMode = "create" | "edit" | "view";
 
 const statusStyles: Record<ProblemStatus, string> = {
-  Published: "bg-[#A01C33]/10 text-[#A01C33]",
-  Draft: "bg-blue-100 text-blue-700",
-  Archived: "bg-gray-100 text-gray-700",
+  Published:
+    "border border-green-200 bg-green-50 text-green-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
+  Draft:
+    "border border-gray-200 bg-gray-50 text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
+  Archived:
+    "border border-red-200 bg-red-50 text-red-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
 };
 
+const difficultyStyles: Record<ProblemDifficulty, string> = {
+  Easy: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  Medium: "border border-amber-200 bg-amber-50 text-amber-700",
+  Hard: "border border-rose-200 bg-rose-50 text-rose-700",
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 ${className}`}
+    />
+  );
+}
+
+function parseTextList(value: string) {
+  return value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function problemToFormValues(problem?: ProblemItem | null): ProblemFormValues {
+  return {
+    title: problem?.title || "",
+    category: problem?.category || "",
+    difficulty: problem?.difficulty || "Medium",
+    status: problem?.status || "Draft",
+    shortDescription: problem?.shortDescription || "",
+    fullDescription: problem?.fullDescription || "",
+    suggestedTechnologies: (problem?.suggestedTechnologies || []).join("\n"),
+    submissionRequirements: (problem?.submissionRequirements || []).join("\n"),
+  };
+}
+
 export default function AdminProblemsPage() {
+  const [allProblems, setAllProblems] = useState<ProblemItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [difficultyFilter, setDifficultyFilter] = useState("All");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<FormMode>("create");
+  const [selectedProblem, setSelectedProblem] = useState<ProblemItem | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
+
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProblemItem | null>(null);
+
+  const fetchProblems = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch("/api/problems?scope=admin", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data: ProblemsResponse = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to fetch problems");
+      }
+
+      setAllProblems(data.problems || []);
+
+      setSelectedProblem((current) => {
+        if (!current) return null;
+        return (data.problems || []).find((item) => item.id === current.id) || null;
+      });
+
+      setDeleteTarget((current) => {
+        if (!current) return null;
+        return (data.problems || []).find((item) => item.id === current.id) || null;
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to fetch problems";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchProblems();
+  }, []);
+
+  useEffect(() => {
+    if (modalOpen || deleteTarget) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [modalOpen, deleteTarget]);
 
   const filteredProblems = useMemo(() => {
-    return problems.filter((problem) => {
+    return allProblems.filter((problem) => {
+      const term = searchTerm.toLowerCase().trim();
+
       const matchesSearch =
-        problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.shortDescription.toLowerCase().includes(searchTerm.toLowerCase());
+        problem.title.toLowerCase().includes(term) ||
+        problem.category.toLowerCase().includes(term) ||
+        problem.slug.toLowerCase().includes(term) ||
+        problem.shortDescription.toLowerCase().includes(term) ||
+        problem.suggestedTechnologies.some((item) =>
+          item.toLowerCase().includes(term)
+        );
 
       const matchesStatus =
         statusFilter === "All" ? true : problem.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      const matchesDifficulty =
+        difficultyFilter === "All"
+          ? true
+          : problem.difficulty === difficultyFilter;
+
+      return matchesSearch && matchesStatus && matchesDifficulty;
     });
-  }, [searchTerm, statusFilter]);
+  }, [allProblems, searchTerm, statusFilter, difficultyFilter]);
 
   const stats = useMemo(() => {
     return {
-      total: problems.length,
-      published: problems.filter((p) => p.status === "Published").length,
-      draft: problems.filter((p) => p.status === "Draft").length,
-      archived: problems.filter((p) => p.status === "Archived").length,
+      total: allProblems.length,
+      published: allProblems.filter((item) => item.status === "Published").length,
+      draft: allProblems.filter((item) => item.status === "Draft").length,
+      archived: allProblems.filter((item) => item.status === "Archived").length,
+      active: allProblems.filter((item) => item.isActive).length,
+      linked: allProblems.filter((item) => item.teamsInterested > 0).length,
     };
-  }, []);
+  }, [allProblems]);
 
-  return (
-    <section className="space-y-6">
-      <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.28)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
-          <div>
-            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-              Problem Statement Management • Admin Control
-            </div>
+  const openCreateModal = () => {
+    setSelectedProblem(null);
+    setModalMode("create");
+    setModalOpen(true);
+  };
 
-            <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-              Create, organize, and manage challenge statements for HackSphere.
-            </h1>
+  const openViewModal = (problem: ProblemItem) => {
+    setSelectedProblem(problem);
+    setModalMode("view");
+    setModalOpen(true);
+  };
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-              Control categories, difficulty levels, visibility, and publishing
-              state of all problem statements used in the hackathon.
-            </p>
-          </div>
+  const openEditModal = (problem: ProblemItem) => {
+    setSelectedProblem(problem);
+    setModalMode("edit");
+    setModalOpen(true);
+  };
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Filtered Result</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {filteredProblems.length}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                Problem statements currently visible in this view.
-              </p>
-            </div>
+  const closeModal = () => {
+    setModalOpen(false);
+    setTimeout(() => {
+      setSelectedProblem(null);
+      setModalMode("create");
+    }, 150);
+  };
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Admin Action</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                Create / Publish
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                Manage problem lifecycle from draft to published state.
-              </p>
-            </div>
-          </div>
+  const handleFormSubmit = async (values: ProblemFormValues) => {
+    try {
+      setFormLoading(true);
+      setError("");
+
+      const payload = {
+        title: values.title.trim(),
+        category: values.category.trim(),
+        difficulty: values.difficulty,
+        status: values.status,
+        shortDescription: values.shortDescription.trim(),
+        fullDescription: values.fullDescription.trim(),
+        suggestedTechnologies: parseTextList(values.suggestedTechnologies),
+        submissionRequirements: parseTextList(values.submissionRequirements),
+      };
+
+      const url =
+        modalMode === "create"
+          ? "/api/problems"
+          : `/api/problems/${selectedProblem?.id}`;
+
+      const method = modalMode === "create" ? "POST" : "PATCH";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data: ProblemResponse = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to save problem");
+      }
+
+      closeModal();
+      await fetchProblems();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save problem";
+      setError(message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleQuickStatusUpdate = async (
+    problem: ProblemItem,
+    nextStatus: ProblemStatus
+  ) => {
+    try {
+      setActionLoadingId(problem.id);
+      setError("");
+
+      const response = await fetch(`/api/problems/${problem.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+        }),
+      });
+
+      const data: ProblemResponse = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to update problem status");
+      }
+
+      await fetchProblems();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update problem";
+      setError(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      setActionLoadingId(deleteTarget.id);
+      setError("");
+
+      const response = await fetch(`/api/problems/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+
+      const data: DeleteResponse = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to delete problem");
+      }
+
+      setDeleteTarget(null);
+      await fetchProblems();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete problem";
+      setError(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const renderTechPreview = (technologies: string[]) => {
+    const visible = technologies.slice(0, 3);
+    const extra = Math.max(technologies.length - 3, 0);
+
+    if (technologies.length === 0) {
+      return (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-500">
+          No technologies added
         </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        {visible.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-700"
+          >
+            {item}
+          </span>
+        ))}
+
+        {extra > 0 ? (
+          <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+            +{extra} more
+          </span>
+        ) : null}
       </div>
+    );
+  };
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Problems</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {stats.total}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-              <Layers3 className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
+  const renderQuickActions = (problem: ProblemItem, mobile = false) => {
+    const sizeClass = mobile
+      ? "px-3.5 py-2 text-sm font-medium"
+      : "px-3 py-1.5 text-xs font-medium";
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Published</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {stats.published}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
+    return (
+      <div className={`flex flex-wrap ${mobile ? "gap-2" : "gap-1.5"}`}>
+        <button
+          type="button"
+          onClick={() => openViewModal(problem)}
+          className={`inline-flex items-center gap-2 rounded-full border border-[#A01C33]/15 bg-[#A01C33]/6 text-[#A01C33] transition hover:bg-[#A01C33]/10 ${sizeClass}`}
+        >
+          <Eye className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          View
+        </button>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Draft</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {stats.draft}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-              <Sparkles className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => openEditModal(problem)}
+          className={`inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white text-gray-700 transition hover:border-[#A01C33]/25 hover:text-[#A01C33] ${sizeClass}`}
+        >
+          <PencilLine className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          Edit
+        </button>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Archived</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {stats.archived}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-700">
-              <XCircle className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
+        {problem.status !== "Published" ? (
+          <button
+            type="button"
+            onClick={() => handleQuickStatusUpdate(problem, "Published")}
+            className={`inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 text-green-700 transition hover:bg-green-100 ${sizeClass}`}
+          >
+            <CheckCircle2 className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+            Publish
+          </button>
+        ) : null}
+
+        {problem.status !== "Draft" ? (
+          <button
+            type="button"
+            onClick={() => handleQuickStatusUpdate(problem, "Draft")}
+            className={`inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100 ${sizeClass}`}
+          >
+            <FileText className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+            Draft
+          </button>
+        ) : null}
+
+        {problem.status !== "Archived" ? (
+          <button
+            type="button"
+            onClick={() => handleQuickStatusUpdate(problem, "Archived")}
+            className={`inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 ${sizeClass}`}
+          >
+            <Archive className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+            Archive
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setDeleteTarget(problem)}
+          className={`inline-flex items-center gap-2 rounded-full border border-red-200 bg-white text-red-600 transition hover:bg-red-50 ${sizeClass}`}
+        >
+          <Trash2 className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          Delete
+        </button>
+
+        {actionLoadingId === problem.id ? (
+          <span
+            className={`inline-flex items-center rounded-full border border-[#A01C33]/10 bg-[#A01C33]/5 font-medium text-[#A01C33] ${
+              mobile ? "px-3.5 py-2 text-sm" : "px-3 py-1.5 text-xs"
+            }`}
+          >
+            Updating...
+          </span>
+        ) : null}
       </div>
+    );
+  };
 
-      <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-[#A01C33]">Problem Records</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-              Search and manage statements
-            </h2>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#A01C33] px-4 text-sm font-semibold text-white transition hover:bg-[#89172c]">
-              <Plus className="h-4 w-4" />
-              Add Problem
-            </button>
-
-            <div className="relative min-w-[240px]">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search title, category..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12 w-full rounded-2xl border border-gray-200 bg-[#f8f8f9] pl-11 pr-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:bg-white focus:ring-4 focus:ring-[#A01C33]/10"
+  const renderDesktopRows = () => {
+    if (loading) {
+      return Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={`problem-skeleton-${index}`}
+          className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <div className="grid grid-cols-[1.65fr_1fr_0.95fr_0.95fr_1.25fr] gap-5">
+            {Array.from({ length: 5 }).map((__, innerIndex) => (
+              <SkeletonBlock
+                key={`problem-skeleton-cell-${index}-${innerIndex}`}
+                className="h-16"
               />
-            </div>
-
-            <div className="relative">
-              <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-12 min-w-[180px] appearance-none rounded-2xl border border-gray-200 bg-white pl-11 pr-10 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Published">Published</option>
-                <option value="Draft">Draft</option>
-                <option value="Archived">Archived</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-2xl bg-[#f8f8f9] px-4 py-3 text-sm font-medium text-gray-600">
-          Showing <span className="font-bold text-[#3B3C3E]">{filteredProblems.length}</span> problem records
-        </div>
-
-        <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-gray-200 xl:block">
-          <div className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1.4fr_1fr_1.1fr] gap-4 bg-[#f8f8f9] px-5 py-4 text-sm font-semibold text-[#3B3C3E]">
-            <div>Title</div>
-            <div>Category</div>
-            <div>Difficulty</div>
-            <div>Status</div>
-            <div>Suggested Tech</div>
-            <div>Interested Teams</div>
-            <div>Actions</div>
-          </div>
-
-          <div className="divide-y divide-gray-200">
-            {filteredProblems.map((problem) => (
-              <div
-                key={problem.id}
-                className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1.4fr_1fr_1.1fr] gap-4 bg-white px-5 py-4 text-sm text-[#3B3C3E] transition hover:bg-[#fcfcfd]"
-              >
-                <div>
-                  <p className="font-semibold">{problem.title}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">
-                    {problem.shortDescription}
-                  </p>
-                </div>
-
-                <div>{problem.category}</div>
-
-                <div>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                      difficultyStyles[problem.difficulty]
-                    }`}
-                  >
-                    {problem.difficulty}
-                  </span>
-                </div>
-
-                <div>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                      statusStyles[problem.status]
-                    }`}
-                  >
-                    {problem.status}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {problem.suggestedTechnologies.slice(0, 2).map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-
-                <div>{problem.teamsInterested}</div>
-
-                <ActionDropdown
-  items={[
-    {
-      label: "View Problem",
-      onClick: () => alert(`View ${problem.title}`),
-    },
-    {
-      label: "Edit Problem",
-      onClick: () => alert(`Edit ${problem.title}`),
-    },
-    {
-      label: "Publish / Unpublish",
-      onClick: () => alert(`Toggle publish for ${problem.title}`),
-    },
-    {
-      label: "Archive Problem",
-      onClick: () => alert(`Archive ${problem.title}`),
-    },
-    {
-      label: "Delete Problem",
-      variant: "danger",
-      onClick: () => alert(`Delete ${problem.title}`),
-    },
-  ]}
-/>
-              </div>
             ))}
           </div>
         </div>
+      ));
+    }
 
-        <div className="mt-6 grid gap-4 xl:hidden">
-          {filteredProblems.map((problem) => (
-            <div
-              key={problem.id}
-              className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-[#3B3C3E]">
-                    {problem.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-500">
-                    {problem.shortDescription}
-                  </p>
+    if (filteredProblems.length === 0) {
+      return (
+        <div className="rounded-[24px] border border-dashed border-gray-200 bg-[#fcfcfd] px-5 py-14 text-center">
+          <p className="text-lg font-semibold text-[#3B3C3E]">
+            No problem records found
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Try adjusting the search or filters.
+          </p>
+        </div>
+      );
+    }
+
+    return filteredProblems.map((problem) => (
+      <div
+        key={problem.id}
+        className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_35px_rgba(15,23,42,0.06)]"
+      >
+        <div className="grid grid-cols-[1.65fr_1fr_0.95fr_0.95fr_1.25fr] gap-5">
+          <div className="min-w-0">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <Layers3 className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#3B3C3E]">
+                  {problem.title}
+                </p>
+                <p className="mt-1 truncate text-xs font-medium text-gray-500">
+                  {problem.category}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${difficultyStyles[problem.difficulty]}`}
+                  >
+                    {problem.difficulty}
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {formatDate(problem.createdAt)}
+                  </span>
                 </div>
 
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">
+                  {problem.shortDescription}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                Status
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                    statusStyles[problem.status]
-                  }`}
+                  className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${statusStyles[problem.status]}`}
                 >
                   {problem.status}
                 </span>
+
+                {problem.isActive ? (
+                  <span className="inline-flex rounded-full border border-[#A01C33]/15 bg-[#A01C33]/8 px-3 py-1.5 text-xs font-semibold text-[#A01C33]">
+                    Live
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                Team interest
+              </p>
+              <p className="mt-2 text-2xl font-bold text-[#3B3C3E]">
+                {problem.teamsInterested}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                linked team{problem.teamsInterested === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] p-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                Tech preview
+              </p>
+              {renderTechPreview(problem.suggestedTechnologies)}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] p-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                Quick actions
+              </p>
+              {renderQuickActions(problem)}
+            </div>
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
+  const renderMobileCards = () => {
+    if (loading) {
+      return Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`problem-mobile-skeleton-${index}`}
+          className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <SkeletonBlock className="h-6 w-1/2" />
+          <SkeletonBlock className="mt-3 h-4 w-1/3" />
+          <div className="mt-5 grid gap-3">
+            <SkeletonBlock className="h-24" />
+            <SkeletonBlock className="h-24" />
+          </div>
+        </div>
+      ));
+    }
+
+    if (filteredProblems.length === 0) {
+      return (
+        <div className="rounded-[24px] border border-dashed border-gray-200 bg-[#fcfcfd] p-8 text-center">
+          <p className="text-lg font-semibold text-[#3B3C3E]">
+            No problem records found
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Adjust filters and try again.
+          </p>
+        </div>
+      );
+    }
+
+    return filteredProblems.map((problem) => (
+      <div
+        key={problem.id}
+        className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-bold text-[#3B3C3E]">
+              {problem.title}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">{problem.category}</p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${difficultyStyles[problem.difficulty]}`}
+              >
+                {problem.difficulty}
+              </span>
+
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${statusStyles[problem.status]}`}
+              >
+                {problem.status}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-gray-200 bg-[#fcfcfd] p-4">
+          <p className="text-sm leading-7 text-gray-600">{problem.shortDescription}</p>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+              Team interest
+            </p>
+            <p className="mt-2 text-lg font-bold text-[#3B3C3E]">
+              {problem.teamsInterested} linked team
+              {problem.teamsInterested === 1 ? "" : "s"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+              Suggested technologies
+            </p>
+            <div className="mt-3">{renderTechPreview(problem.suggestedTechnologies)}</div>
+          </div>
+        </div>
+
+        <div className="mt-5">{renderQuickActions(problem, true)}</div>
+      </div>
+    ));
+  };
+
+  return (
+    <>
+      <section className="space-y-6">
+        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
+                Problem Management • Admin Control
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-white px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Category
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#3B3C3E]">
-                    {problem.category}
-                  </p>
-                </div>
+              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
+                Manage challenge statements, publishing status, and problem visibility.
+              </h1>
 
-                <div className="rounded-2xl bg-white px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Difficulty
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
+                Create new challenges, refine existing statements, and control which
+                problem statements are live for participants.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-sm font-medium text-white/80">Filtered Result</p>
+                <h3 className="mt-2 text-2xl font-bold text-white">
+                  {loading ? "..." : filteredProblems.length}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-white/75">
+                  Problem records visible after your current filters.
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-sm font-medium text-white/80">Admin Scope</p>
+                <h3 className="mt-2 text-2xl font-bold text-white">
+                  Create + Publish
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-white/75">
+                  Control challenge quality, visibility, and lifecycle centrally.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.total}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <Layers3 className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Published</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.published}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Draft</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.draft}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-700">
+                <FileText className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Archived</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.archived}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                <Archive className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Live</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.active}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Linked Teams</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {loading ? "..." : stats.linked}
+                </h3>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <Layers3 className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-sm font-medium text-[#A01C33]">Problem Records</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                Search and manage problem statements
+              </h2>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="relative min-w-[250px]">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search title, category, slug..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-12 w-full rounded-2xl border border-gray-200 bg-[#f8f8f9] pl-11 pr-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:bg-white focus:ring-4 focus:ring-[#A01C33]/10"
+                />
+              </div>
+
+              <div className="relative">
+                <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-12 min-w-[170px] appearance-none rounded-2xl border border-gray-200 bg-white pl-11 pr-10 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Published">Published</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+
+              <div className="relative">
+                <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <select
+                  value={difficultyFilter}
+                  onChange={(e) => setDifficultyFilter(e.target.value)}
+                  className="h-12 min-w-[170px] appearance-none rounded-2xl border border-gray-200 bg-white pl-11 pr-10 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
+                >
+                  <option value="All">All Difficulties</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#A01C33] px-5 text-sm font-semibold text-white transition hover:bg-[#89172c]"
+              >
+                <Plus className="h-4 w-4" />
+                Create Problem
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3 text-sm font-medium text-gray-600">
+            Showing{" "}
+            <span className="font-bold text-[#3B3C3E]">
+              {loading ? "..." : filteredProblems.length}
+            </span>{" "}
+            problem records
+          </div>
+
+          <div className="mt-6 hidden xl:block">
+            <div className="grid grid-cols-[1.65fr_1fr_0.95fr_0.95fr_1.25fr] gap-5 px-3 pb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+              <div>Problem</div>
+              <div>Status</div>
+              <div>Team interest</div>
+              <div>Tech preview</div>
+              <div>Actions</div>
+            </div>
+
+            <div className="space-y-3">{renderDesktopRows()}</div>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:hidden">{renderMobileCards()}</div>
+        </div>
+      </section>
+
+      <ProblemFormModal
+        open={modalOpen}
+        mode={modalMode}
+        initialValues={problemToFormValues(selectedProblem)}
+        loading={formLoading}
+        onClose={closeModal}
+        onSubmit={handleFormSubmit}
+      />
+
+      {deleteTarget ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111827]/45 p-4 backdrop-blur-[2px]"
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-[28px] border border-white/50 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-200 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Delete problem statement
                   </p>
-                  <div className="mt-1">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                        difficultyStyles[problem.difficulty]
-                      }`}
-                    >
-                      {problem.difficulty}
+                  <h3 className="mt-1 text-xl font-bold text-[#3B3C3E]">
+                    Confirm deletion
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    This will permanently remove{" "}
+                    <span className="font-semibold text-[#3B3C3E]">
+                      {deleteTarget.title}
                     </span>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-white px-4 py-3 sm:col-span-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Suggested Technologies
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {problem.suggestedTechnologies.map((tech) => (
-                      <span
-                        key={tech}
-                        className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-white px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Interested Teams
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#3B3C3E]">
-                    {problem.teamsInterested}
+                    . If this problem is already linked to teams, deletion will be
+                    blocked by the backend.
                   </p>
                 </div>
-              </div>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]">
-                  <Eye className="h-4 w-4" />
-                  View Problem
-                </button>
-
-                <button className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]">
-                  <Lightbulb className="h-4 w-4" />
-                  Edit
-                </button>
-
-                <button className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]">
-                  <Target className="h-4 w-4" />
-                  Manage
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:border-[#A01C33]/20 hover:text-[#A01C33]"
+                >
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
-          ))}
+
+            <div className="px-6 py-5">
+              <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Delete only problems that are no longer used. Archive is safer for
+                existing challenge history.
+              </div>
+
+              <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-gray-200 bg-white px-5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={actionLoadingId === deleteTarget.id}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {actionLoadingId === deleteTarget.id
+                    ? "Deleting..."
+                    : "Delete Problem"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      ) : null}
+    </>
   );
 }

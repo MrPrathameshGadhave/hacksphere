@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import {
   ArrowRight,
@@ -30,6 +30,12 @@ type RegisterFormData = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const redirectTarget = String(searchParams.get("redirect") || "").trim();
+  const invitedEmail = String(searchParams.get("email") || "")
+    .trim()
+    .toLowerCase();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -43,6 +49,15 @@ export default function RegisterPage() {
     confirmPassword: "",
     agreeToTerms: false,
   });
+
+  useEffect(() => {
+    if (!invitedEmail) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      email: invitedEmail,
+    }));
+  }, [invitedEmail]);
 
   const passwordChecks = useMemo(
     () => ({
@@ -141,9 +156,11 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
+      const normalizedEmail = formData.email.trim().toLowerCase();
+
       const signupResponse = await axios.post("/api/auth/signup", {
         name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
+        email: normalizedEmail,
         college: formData.college.trim(),
         password: formData.password,
       });
@@ -154,17 +171,19 @@ export default function RegisterPage() {
       }
 
       const loginResponse = await axios.post("/api/auth/login", {
-        email: formData.email.trim().toLowerCase(),
+        email: normalizedEmail,
         password: formData.password,
       });
 
       if (loginResponse.data?.success) {
         toast.success("Account created successfully");
-        router.push("/participant/dashboard");
+        router.replace(redirectTarget || "/participant/dashboard");
         router.refresh();
       } else {
         toast.success("Account created successfully. Please login.");
-        router.push("/login");
+        router.replace(
+          `/login${redirectTarget ? `?redirect=${encodeURIComponent(redirectTarget)}` : ""}`
+        );
       }
     } catch (error: any) {
       toast.error(
@@ -183,9 +202,9 @@ export default function RegisterPage() {
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-      backgroundImage:
-        "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80')",
-    }}
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80')",
+            }}
           />
           <div className="absolute inset-0 bg-[#A01C33]/90" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_22%)]" />
@@ -287,6 +306,13 @@ export default function RegisterPage() {
                 Register as a participant and start building with your team.
               </p>
             </div>
+
+            {invitedEmail ? (
+              <div className="mb-5 rounded-2xl border border-[#A01C33]/15 bg-[#A01C33]/[0.03] px-4 py-3 text-sm text-[#3B3C3E]">
+                You were invited using <strong>{invitedEmail}</strong>. Create your
+                account with this email to continue the team invite flow.
+              </div>
+            ) : null}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
@@ -474,7 +500,11 @@ export default function RegisterPage() {
               <p className="text-sm text-gray-600">
                 Already have an account?{" "}
                 <Link
-                  href="/login"
+                  href={`/login${
+                    redirectTarget
+                      ? `?redirect=${encodeURIComponent(redirectTarget)}`
+                      : ""
+                  }`}
                   className="font-semibold text-[#A01C33] hover:underline"
                 >
                   Sign in

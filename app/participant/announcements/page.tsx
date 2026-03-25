@@ -1,7 +1,9 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarClock,
-  ChevronRight,
   Megaphone,
   Pin,
   Search,
@@ -9,45 +11,39 @@ import {
   Sparkles,
   Trophy,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-const announcements = [
-  {
-    id: 1,
-    category: "Important",
-    title: "Welcome to HackSphere 2026",
-    message:
-      "HackSphere is now live. Complete your profile, create your team, and start exploring the problem statements shared by TechTitans.",
-    date: "Today",
-    pinned: true,
-  },
-  {
-    id: 2,
-    category: "Deadline",
-    title: "Team formation window closes soon",
-    message:
-      "Participants are advised to finalize team members before problem selection begins. Team leader access will control key actions.",
-    date: "Upcoming",
-    pinned: false,
-  },
-  {
-    id: 3,
-    category: "General",
-    title: "Submission guidelines will be released shortly",
-    message:
-      "Project title, description, GitHub link, demo link, tech stack, and optional PPT/video links will be required during submission.",
-    date: "Upcoming",
-    pinned: false,
-  },
-  {
-    id: 4,
-    category: "Results",
-    title: "Leaderboard will be published after judge evaluations",
-    message:
-      "Final rankings will be visible only after admin review and official publishing of scores.",
-    date: "Later",
-    pinned: false,
-  },
-];
+type BasicUser = {
+  _id: string;
+  name: string;
+  email: string;
+  college?: string;
+  avatar?: string;
+  role?: "participant" | "judge" | "admin";
+  isApproved?: boolean;
+};
+
+type AnnouncementData = {
+  _id: string;
+  title: string;
+  message: string;
+  category: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+type AuthMeResponse = {
+  success: boolean;
+  user: BasicUser;
+  message?: string;
+};
+
+type AnnouncementsResponse = {
+  success: boolean;
+  announcements: AnnouncementData[];
+  message?: string;
+};
 
 const categoryStyles: Record<string, string> = {
   Important: "bg-[#A01C33]/10 text-[#A01C33]",
@@ -56,12 +52,189 @@ const categoryStyles: Record<string, string> = {
   Results: "bg-green-100 text-green-700",
 };
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return "Something went wrong";
+}
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-gray-200 ${className}`} />;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await response.json();
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Request failed");
+  }
+
+  return data as T;
+}
+
+function formatAnnouncementDate(value?: string) {
+  if (!value) return "Recently";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Recently";
+  }
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return "Just now";
+  if (diffMs < hour) {
+    const minutes = Math.max(1, Math.floor(diffMs / minute));
+    return `${minutes} min ago`;
+  }
+  if (diffMs < day) {
+    const hours = Math.max(1, Math.floor(diffMs / hour));
+    return `${hours} hr ago`;
+  }
+  if (diffMs < 7 * day) {
+    const days = Math.max(1, Math.floor(diffMs / day));
+    return `${days} day${days > 1 ? "s" : ""} ago`;
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function normalizeCategory(category?: string) {
+  if (!category) return "General";
+  return category.trim();
+}
+
 export default function ParticipantAnnouncementsPage() {
-  const pinnedAnnouncement = announcements.find((item) => item.pinned);
-  const regularAnnouncements = announcements.filter((item) => !item.pinned);
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [user, setUser] = useState<BasicUser | null>(null);
+  const [announcements, setAnnouncements] = useState<AnnouncementData[]>([]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPage() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [me, announcementsRes] = await Promise.all([
+          fetchJson<AuthMeResponse>("/api/auth/me"),
+          fetchJson<AnnouncementsResponse>("/api/announcements"),
+        ]);
+
+        if (!isMounted) return;
+
+        const sortedAnnouncements = [...(announcementsRes.announcements || [])].sort(
+          (a, b) => {
+            if (a.pinned !== b.pinned) {
+              return a.pinned ? -1 : 1;
+            }
+
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+            return bTime - aTime;
+          }
+        );
+
+        setUser(me.user);
+        setAnnouncements(sortedAnnouncements);
+      } catch (error) {
+        const message = getErrorMessage(error);
+
+        if (message === "UNAUTHORIZED") {
+          router.replace("/login");
+          return;
+        }
+
+        if (isMounted) {
+          setError(message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(announcements.map((item) => normalizeCategory(item.category)))
+    );
+
+    return ["All", ...uniqueCategories];
+  }, [announcements]);
+
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter((item) => {
+      const category = normalizeCategory(item.category);
+
+      const matchesSearch =
+        !searchTerm.trim() ||
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory =
+        categoryFilter === "All" || category === categoryFilter;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [announcements, searchTerm, categoryFilter]);
+
+  const pinnedAnnouncements = useMemo(() => {
+    return filteredAnnouncements.filter((item) => item.pinned);
+  }, [filteredAnnouncements]);
+
+  const pinnedAnnouncement = pinnedAnnouncements[0] || null;
+
+  const regularAnnouncements = useMemo(() => {
+    return filteredAnnouncements.filter((item) => item._id !== pinnedAnnouncement?._id);
+  }, [filteredAnnouncements, pinnedAnnouncement]);
+
+  const totalPinnedCount = useMemo(() => {
+    return announcements.filter((item) => item.pinned).length;
+  }, [announcements]);
 
   return (
     <section className="space-y-6">
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.24)] lg:p-10">
         <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
           <div>
@@ -84,7 +257,7 @@ export default function ParticipantAnnouncementsPage() {
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/80">Total Updates</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {announcements.length}
+                {loading ? "..." : announcements.length}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
                 Active participant-facing notices available.
@@ -94,7 +267,7 @@ export default function ParticipantAnnouncementsPage() {
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/80">Pinned Notice</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {pinnedAnnouncement ? "1 Active" : "None"}
+                {loading ? "..." : totalPinnedCount > 0 ? `${totalPinnedCount} Active` : "None"}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
                 Pinned notices contain high-priority instructions.
@@ -122,19 +295,45 @@ export default function ParticipantAnnouncementsPage() {
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search announcements..."
                     className="h-12 w-full rounded-2xl border border-gray-200 bg-[#f8f8f9] pl-11 pr-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:bg-white focus:ring-4 focus:ring-[#A01C33]/10"
                   />
                 </div>
 
-                <button className="inline-flex h-12 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]">
-                  All Categories
-                </button>
+                <select
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  className="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
+                >
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
 
-          {pinnedAnnouncement && (
+          {loading ? (
+            <div className="rounded-[28px] border border-[#A01C33]/15 bg-white p-6 shadow-sm sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <SkeletonBlock className="h-14 w-14 rounded-2xl" />
+                  <div className="min-w-[240px] flex-1">
+                    <SkeletonBlock className="h-6 w-36 rounded-full" />
+                    <SkeletonBlock className="mt-4 h-8 w-80" />
+                    <SkeletonBlock className="mt-4 h-4 w-full max-w-2xl" />
+                    <SkeletonBlock className="mt-2 h-4 w-5/6 max-w-xl" />
+                  </div>
+                </div>
+
+                <SkeletonBlock className="h-10 w-24 rounded-2xl" />
+              </div>
+            </div>
+          ) : pinnedAnnouncement ? (
             <div className="rounded-[28px] border border-[#A01C33]/15 bg-white p-6 shadow-sm sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
@@ -156,58 +355,88 @@ export default function ParticipantAnnouncementsPage() {
                 </div>
 
                 <div className="rounded-2xl bg-[#f8f8f9] px-4 py-2 text-sm font-semibold text-gray-600">
-                  {pinnedAnnouncement.date}
+                  {formatAnnouncementDate(pinnedAnnouncement.createdAt)}
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
             <div className="space-y-4">
-              {regularAnnouncements.map((item) => (
-                <div
-                  key={item.id}
-                  className="group rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 transition hover:-translate-y-0.5 hover:border-[#A01C33]/20 hover:bg-white hover:shadow-sm"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex min-w-0 gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                        <Megaphone className="h-5 w-5" />
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex min-w-0 gap-4">
+                        <SkeletonBlock className="h-12 w-12 rounded-2xl" />
+
+                        <div className="min-w-[240px] flex-1">
+                          <SkeletonBlock className="h-6 w-24 rounded-full" />
+                          <SkeletonBlock className="mt-4 h-6 w-72" />
+                          <SkeletonBlock className="mt-3 h-4 w-full" />
+                          <SkeletonBlock className="mt-2 h-4 w-5/6" />
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <div
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                            categoryStyles[item.category] ??
-                            "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {item.category}
+                      <SkeletonBlock className="h-10 w-24 rounded-2xl" />
+                    </div>
+                  </div>
+                ))
+              ) : regularAnnouncements.length > 0 ? (
+                regularAnnouncements.map((item) => (
+                  <div
+                    key={item._id}
+                    className="group rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 transition hover:-translate-y-0.5 hover:border-[#A01C33]/20 hover:bg-white hover:shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex min-w-0 gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                          <Megaphone className="h-5 w-5" />
                         </div>
 
-                        <h3 className="mt-3 text-lg font-bold text-[#3B3C3E]">
-                          {item.title}
-                        </h3>
+                        <div className="min-w-0">
+                          <div
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                              categoryStyles[normalizeCategory(item.category)] ??
+                              "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {normalizeCategory(item.category)}
+                          </div>
 
-                        <p className="mt-2 text-sm leading-7 text-gray-500">
-                          {item.message}
-                        </p>
+                          <h3 className="mt-3 text-lg font-bold text-[#3B3C3E]">
+                            {item.title}
+                          </h3>
+
+                          <p className="mt-2 text-sm leading-7 text-gray-500">
+                            {item.message}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 rounded-2xl bg-[#f8f8f9] px-4 py-2 text-sm font-semibold text-gray-600">
+                        {formatAnnouncementDate(item.createdAt)}
                       </div>
                     </div>
-
-                    <div className="shrink-0 rounded-2xl bg-[#f8f8f9] px-4 py-2 text-sm font-semibold text-gray-600">
-                      {item.date}
-                    </div>
                   </div>
-
-                  <div className="mt-4 flex items-center justify-end">
-                    <button className="inline-flex items-center gap-2 text-sm font-semibold text-[#A01C33] transition group-hover:gap-3">
-                      View details
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-gray-300 bg-[#fafafa] p-8 text-center">
+                  <h3 className="text-lg font-bold text-[#3B3C3E]">
+                    {announcements.length === 0
+                      ? "No announcements yet"
+                      : "No announcements match your search"}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-gray-500">
+                    {announcements.length === 0
+                      ? "Official participant updates will appear here once published by the organizing team."
+                      : "Try changing your search or category filter to see more updates."}
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -295,15 +524,25 @@ export default function ParticipantAnnouncementsPage() {
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-[#3B3C3E]">
-                    Best practice
-                  </h3>
+                  <h3 className="font-bold text-[#3B3C3E]">Best practice</h3>
                   <p className="mt-2 text-sm leading-7 text-gray-500">
                     Review updates before working on team setup, problem locking,
                     and final project submission.
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+              <p className="text-sm font-medium text-[#A01C33]">Signed in as</p>
+              <h3 className="mt-2 text-lg font-bold text-[#3B3C3E]">
+                {loading ? "Loading..." : user?.name || "Participant"}
+              </h3>
+              <p className="mt-2 text-sm leading-7 text-gray-500">
+                {loading
+                  ? "Checking your session..."
+                  : "You are viewing the live participant announcement feed."}
+              </p>
             </div>
           </div>
         </div>

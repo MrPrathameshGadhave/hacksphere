@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LogOut, Settings, UserCircle2, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type ProfileDropdownProps = {
   name: string;
@@ -17,7 +18,9 @@ export default function ProfileDropdown({
   initials,
   profileHref,
 }: ProfileDropdownProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -34,9 +37,29 @@ export default function ProfileDropdown({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    setOpen(false);
-    alert("Logout backend/session clearing will be connected next.");
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      setOpen(false);
+
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Logout failed");
+      }
+
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Unable to logout right now. Please try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -110,12 +133,13 @@ export default function ProfileDropdown({
 
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              disabled={isLoggingOut}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600">
                 <LogOut className="h-5 w-5" />
               </span>
-              Logout
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </button>
           </div>
         </div>

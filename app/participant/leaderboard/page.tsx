@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Clock3,
@@ -8,75 +12,283 @@ import {
   Users,
 } from "lucide-react";
 
-const topTeams = [
-  {
-    rank: 1,
-    team: "Code Titans",
-    score: 92.5,
-    problem: "Smart Education Engagement Platform",
-  },
-  {
-    rank: 2,
-    team: "Vision Stack",
-    score: 89.0,
-    problem: "Healthcare Support System",
-  },
-  {
-    rank: 3,
-    team: "Next Innovators",
-    score: 86.5,
-    problem: "Smart City Issue Reporting",
-  },
-];
+type BasicUser = {
+  _id: string;
+  name: string;
+  email: string;
+  college?: string;
+  avatar?: string;
+  role?: "participant" | "judge" | "admin";
+  isApproved?: boolean;
+};
 
-const leaderboardRows = [
-  {
-    rank: 1,
-    team: "Code Titans",
-    members: 4,
-    score: 92.5,
-    status: "Published",
-  },
-  {
-    rank: 2,
-    team: "Vision Stack",
-    members: 3,
-    score: 89.0,
-    status: "Published",
-  },
-  {
-    rank: 3,
-    team: "Next Innovators",
-    members: 4,
-    score: 86.5,
-    status: "Published",
-  },
-  {
-    rank: 4,
-    team: "Debug Dynasty",
-    members: 3,
-    score: 84.0,
-    status: "Published",
-  },
-  {
-    rank: 5,
-    team: "Pixel Crafters",
-    members: 4,
-    score: 81.5,
-    status: "Published",
-  },
-  {
-    rank: 6,
-    team: "Logic Loop",
-    members: 2,
-    score: 79.0,
-    status: "Published",
-  },
-];
+type TeamProblemPreview = {
+  id?: string;
+  _id?: string;
+  title: string;
+  slug?: string;
+  shortDescription?: string;
+  category?: string;
+  difficulty?: string;
+};
+
+type TeamData = {
+  _id: string;
+  teamName: string;
+  teamDescription?: string;
+  leader: BasicUser;
+  members: BasicUser[];
+  maxSize: number;
+  problemStatement: TeamProblemPreview | null;
+  status: "active" | "pending" | "disqualified";
+};
+
+type AuthMeResponse = {
+  success: boolean;
+  user: BasicUser;
+  message?: string;
+};
+
+type MyTeamResponse = {
+  success: boolean;
+  team: TeamData | null;
+  message?: string;
+};
+
+type RawLeaderboardItem = {
+  _id?: string;
+  rank?: number;
+  team?: {
+    _id?: string;
+    id?: string;
+    teamName?: string;
+    leader?: BasicUser;
+    members?: BasicUser[];
+    problemStatement?: {
+      title?: string;
+    } | null;
+  };
+  teamId?: string;
+  teamName?: string;
+  members?: number;
+  membersCount?: number;
+  score?: number;
+  totalScore?: number;
+  averageScore?: number;
+  status?: string;
+  published?: boolean;
+  problem?: string;
+  problemTitle?: string;
+};
+
+type LeaderboardResponse = {
+  success: boolean;
+  leaderboard?: RawLeaderboardItem[];
+  rankings?: RawLeaderboardItem[];
+  results?: RawLeaderboardItem[];
+  published?: boolean;
+  isPublished?: boolean;
+  status?: string;
+  message?: string;
+};
+
+type LeaderboardRow = {
+  rank: number;
+  teamId: string;
+  teamName: string;
+  members: number;
+  score: number;
+  status: string;
+  problem: string;
+};
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return "Something went wrong";
+}
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-gray-200 ${className}`} />;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await response.json();
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Request failed");
+  }
+
+  return data as T;
+}
+
+function normalizeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getRawLeaderboardRows(payload: LeaderboardResponse) {
+  if (Array.isArray(payload.leaderboard)) return payload.leaderboard;
+  if (Array.isArray(payload.rankings)) return payload.rankings;
+  if (Array.isArray(payload.results)) return payload.results;
+  return [];
+}
+
+function normalizeLeaderboardRows(rawRows: RawLeaderboardItem[]) {
+  return rawRows
+    .map((item, index): LeaderboardRow => {
+      const teamId = String(item.team?._id || item.team?.id || item.teamId || "");
+      const teamName = String(
+        item.team?.teamName || item.teamName || "Untitled Team"
+      );
+
+      const membersFromTeam =
+        Array.isArray(item.team?.members)
+          ? item.team.members.length + (item.team?.leader ? 1 : 0)
+          : 0;
+
+      const members =
+        normalizeNumber(item.membersCount, 0) ||
+        normalizeNumber(item.members, 0) ||
+        membersFromTeam ||
+        0;
+
+      const score =
+        normalizeNumber(item.score, NaN) ||
+        normalizeNumber(item.totalScore, NaN) ||
+        normalizeNumber(item.averageScore, 0);
+
+      const problem = String(
+        item.team?.problemStatement?.title ||
+          item.problemTitle ||
+          item.problem ||
+          "Problem not available"
+      );
+
+      const publishedStatus =
+        typeof item.published === "boolean"
+          ? item.published
+            ? "Published"
+            : "Hidden"
+          : "Published";
+
+      return {
+        rank: normalizeNumber(item.rank, index + 1),
+        teamId,
+        teamName,
+        members,
+        score,
+        status: item.status || publishedStatus,
+        problem,
+      };
+    })
+    .sort((a, b) => a.rank - b.rank);
+}
+
+function formatScore(score: number) {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1);
+}
 
 export default function ParticipantLeaderboardPage() {
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [user, setUser] = useState<BasicUser | null>(null);
+  const [team, setTeam] = useState<TeamData | null>(null);
+  const [rows, setRows] = useState<LeaderboardRow[]>([]);
+  const [isPublished, setIsPublished] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPage() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [me, myTeam, leaderboardRes] = await Promise.all([
+          fetchJson<AuthMeResponse>("/api/auth/me"),
+          fetchJson<MyTeamResponse>("/api/teams/my-team"),
+          fetchJson<LeaderboardResponse>("/api/leaderboard"),
+        ]);
+
+        if (!isMounted) return;
+
+        const normalizedRows = normalizeLeaderboardRows(
+          getRawLeaderboardRows(leaderboardRes)
+        );
+
+        const published =
+          typeof leaderboardRes.published === "boolean"
+            ? leaderboardRes.published
+            : typeof leaderboardRes.isPublished === "boolean"
+            ? leaderboardRes.isPublished
+            : normalizedRows.length > 0;
+
+        setUser(me.user);
+        setTeam(myTeam.team);
+        setRows(normalizedRows);
+        setIsPublished(published);
+      } catch (error) {
+        const message = getErrorMessage(error);
+
+        if (message === "UNAUTHORIZED") {
+          router.replace("/login");
+          return;
+        }
+
+        if (isMounted) {
+          setError(message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const topTeams = useMemo(() => rows.slice(0, 3), [rows]);
+
+  const myTeamRank = useMemo(() => {
+    if (!team) return null;
+
+    return (
+      rows.find(
+        (row) =>
+          row.teamId === team._id ||
+          row.teamName.trim().toLowerCase() === team.teamName.trim().toLowerCase()
+      ) || null
+    );
+  }, [rows, team]);
+
+  const leaderboardStatusLabel = isPublished ? "Published" : "Not Published";
+  const rankingBasisLabel = rows.length > 0 ? "Judge Scores" : "Awaiting Scores";
+
   return (
     <section className="space-y-6">
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.24)] lg:p-10">
         <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
           <div>
@@ -98,17 +310,27 @@ export default function ParticipantLeaderboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/80">Leaderboard Status</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">Published</h3>
+              <h3 className="mt-2 text-2xl font-bold text-white">
+                {loading ? "..." : leaderboardStatusLabel}
+              </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Current rankings are visible to all participants.
+                {loading
+                  ? "Checking leaderboard visibility..."
+                  : isPublished
+                  ? "Current rankings are visible to all participants."
+                  : "Rankings are not published yet."}
               </p>
             </div>
 
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/80">Ranking Basis</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">Judge Scores</h3>
+              <h3 className="mt-2 text-2xl font-bold text-white">
+                {loading ? "..." : rankingBasisLabel}
+              </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Final score is based on evaluation criteria and averages.
+                {loading
+                  ? "Checking score details..."
+                  : "Final score is based on evaluation criteria and averages."}
               </p>
             </div>
           </div>
@@ -131,49 +353,76 @@ export default function ParticipantLeaderboardPage() {
           </div>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            {topTeams.map((team) => (
-              <div
-                key={team.rank}
-                className={`rounded-[24px] border p-5 shadow-sm transition hover:-translate-y-0.5 ${
-                  team.rank === 1
-                    ? "border-[#A01C33]/20 bg-gradient-to-b from-[#fff7f8] to-white"
-                    : "border-gray-200 bg-[#fcfcfd]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl text-sm font-bold ${
-                      team.rank === 1
-                        ? "bg-[#A01C33] text-white"
-                        : "bg-[#A01C33]/10 text-[#A01C33]"
-                    }`}
-                  >
-                    #{team.rank}
+            {loading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <SkeletonBlock className="h-14 w-14 rounded-2xl" />
+                    <SkeletonBlock className="h-11 w-11 rounded-2xl" />
+                  </div>
+                  <SkeletonBlock className="mt-5 h-7 w-40" />
+                  <SkeletonBlock className="mt-3 h-4 w-full" />
+                  <SkeletonBlock className="mt-2 h-4 w-5/6" />
+                  <SkeletonBlock className="mt-5 h-20 w-full rounded-2xl" />
+                </div>
+              ))
+            ) : topTeams.length > 0 ? (
+              topTeams.map((teamItem) => (
+                <div
+                  key={`${teamItem.teamId}-${teamItem.rank}`}
+                  className={`rounded-[24px] border p-5 shadow-sm transition hover:-translate-y-0.5 ${
+                    teamItem.rank === 1
+                      ? "border-[#A01C33]/20 bg-gradient-to-b from-[#fff7f8] to-white"
+                      : "border-gray-200 bg-[#fcfcfd]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-2xl text-sm font-bold ${
+                        teamItem.rank === 1
+                          ? "bg-[#A01C33] text-white"
+                          : "bg-[#A01C33]/10 text-[#A01C33]"
+                      }`}
+                    >
+                      #{teamItem.rank}
+                    </div>
+
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                      <Medal className="h-5 w-5" />
+                    </div>
                   </div>
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                    <Medal className="h-5 w-5" />
+                  <h3 className="mt-5 text-xl font-bold text-[#3B3C3E]">
+                    {teamItem.teamName}
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-7 text-gray-500">
+                    {teamItem.problem}
+                  </p>
+
+                  <div className="mt-5 rounded-2xl bg-[#f8f8f9] px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                      Final Score
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                      {formatScore(teamItem.score)}
+                    </p>
                   </div>
                 </div>
-
-                <h3 className="mt-5 text-xl font-bold text-[#3B3C3E]">
-                  {team.team}
+              ))
+            ) : (
+              <div className="md:col-span-3 rounded-[24px] border border-dashed border-gray-300 bg-[#fafafa] p-8 text-center">
+                <h3 className="text-lg font-bold text-[#3B3C3E]">
+                  No published rankings yet
                 </h3>
-
                 <p className="mt-2 text-sm leading-7 text-gray-500">
-                  {team.problem}
+                  Top team standings will appear here once the leaderboard is published.
                 </p>
-
-                <div className="mt-5 rounded-2xl bg-[#f8f8f9] px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Final Score
-                  </p>
-                  <p className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                    {team.score}
-                  </p>
-                </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -194,13 +443,38 @@ export default function ParticipantLeaderboardPage() {
                   <p className="text-sm font-medium text-[#A01C33]">
                     Current rank
                   </p>
-                  <h3 className="mt-1 text-2xl font-bold text-[#3B3C3E]">--</h3>
+                  <h3 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                    {loading
+                      ? "..."
+                      : myTeamRank
+                      ? `#${myTeamRank.rank}`
+                      : "--"}
+                  </h3>
                   <p className="mt-2 text-sm leading-7 text-gray-500">
-                    Your team ranking will appear here once submissions are
-                    reviewed and results are published.
+                    {loading
+                      ? "Checking your team ranking..."
+                      : !team
+                      ? "Create or join a team to track your ranking once results are published."
+                      : myTeamRank
+                      ? `Your team "${myTeamRank.teamName}" currently has a score of ${formatScore(
+                          myTeamRank.score
+                        )}.`
+                      : "Your team ranking will appear here once submissions are reviewed and results are published."}
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-4 rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+              <p className="text-sm font-medium text-[#A01C33]">Signed in as</p>
+              <h3 className="mt-2 text-lg font-bold text-[#3B3C3E]">
+                {loading ? "Loading..." : user?.name || "Participant"}
+              </h3>
+              <p className="mt-2 text-sm leading-7 text-gray-500">
+                {loading
+                  ? "Checking your session..."
+                  : "You are viewing the live participant leaderboard."}
+              </p>
             </div>
           </div>
 
@@ -282,30 +556,63 @@ export default function ParticipantLeaderboardPage() {
           </div>
 
           <div className="divide-y divide-gray-200">
-            {leaderboardRows.map((row) => (
-              <div
-                key={row.rank}
-                className="grid grid-cols-[0.8fr_2fr_1fr_1fr_1.2fr] gap-4 bg-white px-5 py-4 text-sm text-[#3B3C3E] transition hover:bg-[#fcfcfd]"
-              >
-                <div className="font-bold text-[#A01C33]">#{row.rank}</div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                    <Users className="h-4 w-4" />
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-[0.8fr_2fr_1fr_1fr_1.2fr] gap-4 bg-white px-5 py-4"
+                >
+                  <SkeletonBlock className="h-6 w-10" />
+                  <div className="flex items-center gap-3">
+                    <SkeletonBlock className="h-10 w-10 rounded-2xl" />
+                    <SkeletonBlock className="h-6 w-40" />
                   </div>
-                  <span className="font-semibold">{row.team}</span>
+                  <SkeletonBlock className="h-6 w-10" />
+                  <SkeletonBlock className="h-6 w-16" />
+                  <SkeletonBlock className="h-6 w-20 rounded-full" />
                 </div>
+              ))
+            ) : rows.length > 0 ? (
+              rows.map((row) => (
+                <div
+                  key={`${row.teamId}-${row.rank}`}
+                  className="grid grid-cols-[0.8fr_2fr_1fr_1fr_1.2fr] gap-4 bg-white px-5 py-4 text-sm text-[#3B3C3E] transition hover:bg-[#fcfcfd]"
+                >
+                  <div className="font-bold text-[#A01C33]">#{row.rank}</div>
 
-                <div>{row.members}</div>
-                <div className="font-bold">{row.score}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">{row.teamName}</span>
+                  </div>
 
-                <div>
-                  <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                    {row.status}
-                  </span>
+                  <div>{row.members}</div>
+                  <div className="font-bold">{formatScore(row.score)}</div>
+
+                  <div>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                        row.status.toLowerCase() === "published"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="bg-white px-5 py-10 text-center">
+                <h3 className="text-lg font-bold text-[#3B3C3E]">
+                  No leaderboard data available
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-gray-500">
+                  Rankings will appear here once evaluations are completed and results are published.
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

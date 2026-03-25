@@ -1,88 +1,116 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, FileCheck2, Trophy } from "lucide-react";
 import ProblemCard from "@/components/problem-statements/ProblemCard";
 import ProblemPagination from "@/components/problem-statements/ProblemPagination";
-import { publicProblemStatements } from "@/lib/mock-problems";
 import PublicHeader from "@/components/layout/PublicHeader";
 
 const ITEMS_PER_PAGE = 6;
 
+type Problem = {
+  id: string;
+  title: string;
+  slug: string;
+  shortDescription: string;
+  fullDescription: string;
+  category: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  suggestedTechnologies: string[];
+  submissionRequirements: string[];
+  status?: "Draft" | "Published" | "Archived";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+type ProblemsResponse = {
+  success: boolean;
+  problems: Problem[];
+  message?: string;
+};
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="h-10 w-10 animate-pulse rounded-2xl bg-gray-100" />
+      <div className="mt-4 h-6 w-3/4 animate-pulse rounded-lg bg-gray-100" />
+      <div className="mt-3 h-4 w-full animate-pulse rounded bg-gray-100" />
+      <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-gray-100" />
+      <div className="mt-5 flex gap-2">
+        <div className="h-6 w-20 animate-pulse rounded-full bg-gray-100" />
+        <div className="h-6 w-20 animate-pulse rounded-full bg-gray-100" />
+      </div>
+      <div className="mt-6 h-11 w-36 animate-pulse rounded-2xl bg-gray-100" />
+    </div>
+  );
+}
+
 export default function ProblemStatementsPage() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const totalPages = Math.ceil(publicProblemStatements.length / ITEMS_PER_PAGE);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProblems() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch("/api/problems", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const data: ProblemsResponse = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Failed to load problem statements");
+        }
+
+        if (!isMounted) return;
+        setProblems(data.problems || []);
+      } catch (err) {
+        if (!isMounted) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load problem statements"
+        );
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProblems();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(problems.length / ITEMS_PER_PAGE));
 
   const paginatedProblems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return publicProblemStatements.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [currentPage]);
+    return problems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [currentPage, problems]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
       <PublicHeader />
-      {/* <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-            <div>
-              <div className="inline-flex items-center rounded-full border border-[#A01C33]/10 bg-[#A01C33]/5 px-4 py-2 text-sm font-semibold text-[#A01C33]">
-                Problem Statements • Stage 1 Online Round
-              </div>
-
-              <h1 className="mt-5 text-4xl font-black tracking-tight text-[#1F2937] sm:text-5xl">
-                Explore public challenge statements for HackSphere.
-              </h1>
-
-              <p className="mt-5 max-w-3xl text-base leading-8 text-[#5B6068] sm:text-lg">
-                In the first stage of HackSphere, problem statements are published
-                online. Teams study the challenge, prepare their approach, and
-                submit their work online for screening and shortlisting.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-4">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#A01C33] to-[#7e1428] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(160,28,51,0.22)] transition hover:-translate-y-0.5"
-                >
-                  Register Now
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-
-                <Link
-                  href="/about"
-                  className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition hover:border-[#A01C33] hover:text-[#A01C33]"
-                >
-                  About Hackathon
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[28px] border border-gray-200 bg-[#fcfcfd] p-6 shadow-sm">
-                <p className="text-sm font-medium text-gray-500">Current View</p>
-                <h3 className="mt-2 text-2xl font-bold text-[#3B3C3E]">
-                  {publicProblemStatements.length} Problems
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-gray-500">
-                  Public challenge statements available for the screening stage.
-                </p>
-              </div>
-
-              <div className="rounded-[28px] border border-gray-200 bg-[#fcfcfd] p-6 shadow-sm">
-                <p className="text-sm font-medium text-gray-500">Next Step</p>
-                <h3 className="mt-2 text-2xl font-bold text-[#3B3C3E]">
-                  Read → Prepare → Submit
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-gray-500">
-                  Strong online submissions move forward to the 48-hour offline final.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section> */}
 
       <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -101,17 +129,40 @@ export default function ProblemStatementsPage() {
           </div>
         </div>
 
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {paginatedProblems.map((problem) => (
-            <ProblemCard key={problem.id} problem={problem} />
-          ))}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <SkeletonCard key={index} />
+            ))
+          ) : paginatedProblems.length > 0 ? (
+            paginatedProblems.map((problem) => (
+              <ProblemCard key={problem.id} problem={problem} />
+            ))
+          ) : (
+            <div className="col-span-full rounded-[28px] border border-dashed border-gray-300 bg-white p-10 text-center">
+              <h3 className="text-xl font-bold text-[#202225]">
+                No published problem statements yet
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-gray-500">
+                Please check back later once the admin publishes problem statements.
+              </p>
+            </div>
+          )}
         </div>
 
-        <ProblemPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+        {!loading && problems.length > 0 ? (
+          <ProblemPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        ) : null}
       </section>
 
       <section className="bg-white py-16">
@@ -150,6 +201,7 @@ export default function ProblemStatementsPage() {
                   },
                 ].map((item) => {
                   const Icon = item.icon;
+
                   return (
                     <div
                       key={item.title}

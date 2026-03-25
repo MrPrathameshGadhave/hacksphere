@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
+
 import {
   ArrowRight,
   Code2,
@@ -20,7 +21,12 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const from = searchParams.get("from");
+  const redirect = searchParams.get("redirect") || "";
+  const inviteEmail = String(searchParams.get("email") || "")
+    .trim()
+    .toLowerCase();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +36,32 @@ export default function LoginPage() {
     password: "",
     remember: false,
   });
+
+  useEffect(() => {
+    if (!inviteEmail) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      email: inviteEmail,
+    }));
+  }, [inviteEmail]);
+
+  const registerHref = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (inviteEmail) {
+      params.set("email", inviteEmail);
+    }
+
+    if (redirect) {
+      params.set("redirect", redirect);
+    } else if (from) {
+      params.set("redirect", from);
+    }
+
+    const query = params.toString();
+    return query ? `/register?${query}` : "/register";
+  }, [inviteEmail, redirect, from]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -41,6 +73,7 @@ export default function LoginPage() {
   };
 
   const getRoleRedirectPath = (role: string) => {
+    if (redirect) return redirect;
     if (from) return from;
 
     switch (role) {
@@ -67,14 +100,14 @@ export default function LoginPage() {
       setLoading(true);
 
       const response = await axios.post("/api/auth/login", {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 
       if (response.data?.success) {
         toast.success("Login successful");
         const redirectPath = getRoleRedirectPath(response.data.user.role);
-        router.push(redirectPath);
+        router.replace(redirectPath);
         router.refresh();
       } else {
         toast.error(response.data?.message || "Login failed");
@@ -197,6 +230,18 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {redirect ? (
+              <div className="mb-5 rounded-2xl border border-[#A01C33]/15 bg-[#A01C33]/[0.03] px-4 py-3 text-sm text-[#3B3C3E]">
+                Login to continue your team invitation or protected flow.
+              </div>
+            ) : null}
+
+            {inviteEmail ? (
+              <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                Continue with <strong>{inviteEmail}</strong> to accept the team invitation.
+              </div>
+            ) : null}
+
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label
@@ -285,15 +330,13 @@ export default function LoginPage() {
                   Or continue with
                 </p>
               </div>
-
-              
             </form>
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
                 Don&apos;t have an account?{" "}
                 <Link
-                  href="/register"
+                  href={registerHref}
                   className="font-semibold text-[#A01C33] hover:underline"
                 >
                   Sign up now

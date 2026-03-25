@@ -10,7 +10,9 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { publicProblemStatements } from "@/lib/mock-problems";
+
+import connectDB from "@/lib/db";
+import ProblemStatement from "@/models/ProblemStatement";
 import PublicHeader from "@/components/layout/PublicHeader";
 
 const difficultyStyles: Record<string, string> = {
@@ -24,19 +26,36 @@ export default async function ProblemStatementDetailsPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  await connectDB();
 
-  const problem = publicProblemStatements.find((item) => item.slug === slug);
+  const { slug } = await params;
+  const normalizedSlug = decodeURIComponent(slug).trim().toLowerCase();
+
+  const problem = await ProblemStatement.findOne({
+    slug: normalizedSlug,
+  })
+    .select(
+      "title slug shortDescription fullDescription category difficulty suggestedTechnologies submissionRequirements status isActive createdAt updatedAt"
+    )
+    .lean();
 
   if (!problem) {
     notFound();
   }
 
+  const suggestedTechnologies = Array.isArray(problem.suggestedTechnologies)
+    ? problem.suggestedTechnologies
+    : [];
+
+  const submissionRequirements = Array.isArray(problem.submissionRequirements)
+    ? problem.submissionRequirements
+    : [];
+
   return (
     <main className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
-              <PublicHeader />
-        
-      {/* <section className="border-b border-gray-200 bg-white">
+      <PublicHeader />
+
+      <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <Link
             href="/problem-statements"
@@ -50,9 +69,10 @@ export default async function ProblemStatementDetailsPage({
             <span className="inline-flex rounded-full bg-[#A01C33]/10 px-3 py-1 text-xs font-semibold text-[#A01C33]">
               {problem.category}
             </span>
+
             <span
               className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                difficultyStyles[problem.difficulty]
+                difficultyStyles[problem.difficulty] || "bg-gray-100 text-gray-700"
               }`}
             >
               {problem.difficulty}
@@ -84,7 +104,7 @@ export default async function ProblemStatementDetailsPage({
             </Link>
           </div>
         </div>
-      </section> */}
+      </section>
 
       <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -96,7 +116,7 @@ export default async function ProblemStatementDetailsPage({
               <h2 className="mt-4 text-2xl font-bold text-[#202225]">
                 Full Description
               </h2>
-              <p className="mt-4 text-sm leading-8 text-[#6B7280]">
+              <p className="mt-4 whitespace-pre-line text-sm leading-8 text-[#6B7280]">
                 {problem.fullDescription}
               </p>
             </div>
@@ -107,10 +127,10 @@ export default async function ProblemStatementDetailsPage({
                   <Target className="h-5 w-5" />
                 </div>
                 <h2 className="mt-4 text-2xl font-bold text-[#202225]">
-                  Objective
+                  Category
                 </h2>
                 <p className="mt-4 text-sm leading-8 text-[#6B7280]">
-                  {problem.objective}
+                  {problem.category}
                 </p>
               </div>
 
@@ -119,10 +139,10 @@ export default async function ProblemStatementDetailsPage({
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <h2 className="mt-4 text-2xl font-bold text-[#202225]">
-                  Expected Outcome
+                  Difficulty Level
                 </h2>
                 <p className="mt-4 text-sm leading-8 text-[#6B7280]">
-                  {problem.expectedOutcome}
+                  {problem.difficulty}
                 </p>
               </div>
             </div>
@@ -136,14 +156,20 @@ export default async function ProblemStatementDetailsPage({
               </h2>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {problem.suggestedTechnologies.map((tech) => (
-                  <span
-                    key={tech}
-                    className="rounded-full border border-gray-200 bg-[#fcfcfd] px-4 py-2 text-sm font-semibold text-[#3B3C3E]"
-                  >
-                    {tech}
-                  </span>
-                ))}
+                {suggestedTechnologies.length > 0 ? (
+                  suggestedTechnologies.map((tech, index) => (
+                    <span
+                      key={`${tech}-${index}`}
+                      className="rounded-full border border-gray-200 bg-[#fcfcfd] px-4 py-2 text-sm font-semibold text-[#3B3C3E]"
+                    >
+                      {tech}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-sm leading-7 text-[#6B7280]">
+                    No suggested technologies added yet.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -154,23 +180,31 @@ export default async function ProblemStatementDetailsPage({
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <h2 className="mt-4 text-2xl font-bold text-[#202225]">
-                Problem Rules
+                Submission Requirements
               </h2>
 
               <div className="mt-5 space-y-3">
-                {problem.rules.map((rule, index) => (
-                  <div
-                    key={rule}
-                    className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-4"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#A01C33] text-xs font-bold text-white">
-                        {index + 1}
+                {submissionRequirements.length > 0 ? (
+                  submissionRequirements.map((requirement, index) => (
+                    <div
+                      key={`${requirement}-${index}`}
+                      className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#A01C33] text-xs font-bold text-white">
+                          {index + 1}
+                        </div>
+                        <p className="text-sm leading-7 text-[#5B6068]">
+                          {requirement}
+                        </p>
                       </div>
-                      <p className="text-sm leading-7 text-[#5B6068]">{rule}</p>
                     </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-4 text-sm leading-7 text-[#5B6068]">
+                    No submission requirements added yet.
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -188,9 +222,9 @@ export default async function ProblemStatementDetailsPage({
                   "Keep the idea practical, structured, and relevant.",
                   "Follow official HackSphere submission instructions.",
                   "Aim for a strong screening-round entry to qualify offline.",
-                ].map((point) => (
+                ].map((point, index) => (
                   <div
-                    key={point}
+                    key={`${point}-${index}`}
                     className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-4 text-sm leading-7 text-[#5B6068]"
                   >
                     {point}
