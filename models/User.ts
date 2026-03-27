@@ -10,6 +10,8 @@ export interface IUser extends Document {
   avatar?: string;
   isApproved: boolean;
   judgeStatus?: "active" | "pending" | "blocked";
+  resetPasswordToken?: string;
+  resetPasswordExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +61,14 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["active", "pending", "blocked"],
       default: "pending",
+    },
+    resetPasswordToken: {
+      type: String,
+      default: undefined,
+    },
+    resetPasswordExpiresAt: {
+      type: Date,
+      default: undefined,
     },
   },
   { timestamps: true }

@@ -9,7 +9,13 @@ type TokenPayload = {
   role: UserRole;
 };
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+// Validate JWT_SECRET is defined
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error("JWT_SECRET environment variable is not defined");
+}
+
+const secret = new TextEncoder().encode(jwtSecret);
 
 async function verifyJWT(token: string): Promise<TokenPayload | null> {
   try {

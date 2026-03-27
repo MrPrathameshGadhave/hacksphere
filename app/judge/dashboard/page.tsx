@@ -15,7 +15,7 @@ import {
 
 type JudgeReviewItem = {
   id: string;
-  assignmentId: string | null;
+  assignmentId: string;
   submissionId: string;
   teamId: string;
   teamName: string;
@@ -40,15 +40,12 @@ type JudgeReviewItem = {
     totalScore: number;
     updatedAt: string | null;
   } | null;
-  source: "assigned" | "fallback";
-  isAssigned: boolean;
   assignedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
 
 type JudgeReviewsResponse = {
-  mode: "assigned" | "fallback";
   items: JudgeReviewItem[];
   counts: {
     total: number;
@@ -274,16 +271,12 @@ export default function JudgeDashboardPage() {
   const pendingReviews =
     (reviewsData?.counts?.pending ?? 0) + (reviewsData?.counts?.inProgress ?? 0);
   const leaderboardPublished = Boolean(leaderboardData?.published);
-  const reviewMode = reviewsData?.mode ?? "assigned";
 
   const stats = [
     {
       title: "Assigned Projects",
       value: String(totalAssigned),
-      subtext:
-        reviewMode === "assigned"
-          ? "Projects allocated for your review"
-          : "Submitted projects visible in fallback mode",
+      subtext: "Projects allocated for your review",
       icon: FileSearch,
     },
     {
@@ -359,14 +352,10 @@ export default function JudgeDashboardPage() {
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/80">Judge Role</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {reviewMode === "assigned"
-                  ? "Assigned Review Mode"
-                  : "Fallback Review Mode"}
+                Assigned Review Mode
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                {reviewMode === "assigned"
-                  ? "You can review only submissions assigned to you."
-                  : "No assignments found yet, so submitted and locked entries are shown temporarily."}
+                You can review only submissions assigned to you.
               </p>
             </div>
 

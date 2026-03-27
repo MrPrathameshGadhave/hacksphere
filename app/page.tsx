@@ -3,6 +3,7 @@ import ttlogo from './utils/tt.jpeg';
 import dpgulogo from './utils/dpgu.jpeg';
 import Footer from "@/components/layout/Footer";
 import PublicHeader from "@/components/layout/PublicHeader";
+import Link from 'next/link';
 export default function HackSphereLandingPage() {
   const stats = [
     { value: '48', label: 'Hours' },
@@ -113,7 +114,9 @@ export default function HackSphereLandingPage() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#F6F7FB] text-[#3B3C3E]">
+    <div className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
+            <PublicHeader />
+      
       {/* FIXED / NON-SCROLLABLE BACKGROUND LOGO */}
       <div className="pointer-events-none fixed inset-0 z-[1] flex justify-center">
         <div className="relative mt-24 h-[420px] w-[420px] opacity-[0.16] md:h-[560px] md:w-[560px] lg:h-[760px] lg:w-[760px]">
@@ -130,11 +133,11 @@ export default function HackSphereLandingPage() {
       {/* soft overlay over watermark */}
       <div className="pointer-events-none fixed inset-0 z-[2] bg-[linear-gradient(to_bottom,rgba(246,247,251,0.76),rgba(246,247,251,0.58),rgba(246,247,251,0.78))]" />
 
-     {/* <PublicHeader /> */}
+     
 
       {/* HERO - COMPLETELY REDESIGNED */}
       <section id="home" className="relative z-10">
-        <div className="mx-auto max-w-7xl px-6 pb-16 pt-14 lg:px-8 lg:pb-24 lg:pt-20">
+        <div className="mx-auto max-w-7xl px-6 pb-16 pt-14 lg:px-8 lg:pb-24 ">
           <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-3 rounded-full border border-[#A01C33]/15 bg-white/90 px-4 py-2 text-sm font-semibold text-[#A01C33] shadow-sm backdrop-blur">
@@ -154,7 +157,7 @@ export default function HackSphereLandingPage() {
                 <p className="mb-3 text-sm font-bold uppercase tracking-[0.24em] text-[#A01C33]">
                   College Hackathon Platform 2026
                 </p>
-                <h1 className="text-5xl font-black leading-[1.02] tracking-tight text-[#1F2937] md:text-6xl xl:text-7xl">
+                <h1 className="text-4xl font-black leading-[1.02] tracking-tight text-[#1F2937] md:text-5xl xl:text-6xl">
                   HackSphere
                   <span className="mt-3 block text-[#A01C33]">
                     Built for innovation.
@@ -175,12 +178,12 @@ export default function HackSphereLandingPage() {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <button className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5">
+                <Link href="/register" className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5">
                   Register Now
-                </button>
-                <button className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition hover:border-[#A01C33] hover:text-[#A01C33]">
+                </Link>
+                <Link href="/problem-statements" className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition hover:border-[#A01C33] hover:text-[#A01C33]">
                   Problem Statements
-                </button>
+                </Link>
               </div>
 
               <div className="grid gap-4 pt-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -542,12 +545,12 @@ export default function HackSphereLandingPage() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
-            <button className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25">
+            <Link href="/register" className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25">
               Register
-            </button>
-            <button className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm">
+            </Link>
+            <Link href="/#about-hackathon" className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm">
               Learn More
-            </button>
+            </Link>
           </div>
         </div>
       </section>

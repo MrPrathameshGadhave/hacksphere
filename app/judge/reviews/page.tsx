@@ -25,7 +25,7 @@ type ReviewStatus = "pending" | "in-progress" | "reviewed";
 
 type ReviewItem = {
   id: string;
-  assignmentId: string | null;
+  assignmentId: string;
   submissionId: string;
   teamId: string;
   teamName: string;
@@ -50,15 +50,12 @@ type ReviewItem = {
     totalScore: number;
     updatedAt: string | null;
   } | null;
-  source: "assigned" | "fallback";
-  isAssigned: boolean;
   assignedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
 
 type ReviewsApiResponse = {
-  mode: "assigned" | "fallback";
   items: ReviewItem[];
   counts: {
     total: number;
@@ -127,7 +124,6 @@ export default function JudgeReviewsPage() {
     inProgress: 0,
     reviewed: 0,
   });
-  const [mode, setMode] = useState<"assigned" | "fallback">("assigned");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -158,7 +154,6 @@ export default function JudgeReviewsPage() {
         if (!mounted || !data || !("items" in data)) return;
 
         setProjects(Array.isArray(data.items) ? data.items : []);
-        setMode(data.mode || "assigned");
         setCounts({
           total: data.counts?.total ?? 0,
           pending: data.counts?.pending ?? 0,
@@ -310,20 +305,6 @@ export default function JudgeReviewsPage() {
         </div>
       </div>
 
-      {/* {mode === "fallback" && !isLoading && !error && (
-        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-amber-800">
-            Assignment fallback is active.
-          </p>
-          <p className="mt-2 text-sm leading-7 text-amber-700">
-            No judge assignments were found yet, so this page is temporarily
-            showing submitted and locked projects directly from submissions.
-            Once the admin assignment flow is wired, assigned reviews will take
-            priority automatically.
-          </p>
-        </div>
-      )} */}
-
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
         <div className="space-y-6">
           <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
@@ -453,12 +434,6 @@ export default function JudgeReviewsPage() {
                           >
                             {statusLabel}
                           </span>
-
-                          {!project.isAssigned && (
-                            <span className="inline-flex rounded-full bg-[#A01C33]/10 px-3 py-1 text-xs font-semibold text-[#A01C33]">
-                              Submission Fallback
-                            </span>
-                          )}
                         </div>
 
                         <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">

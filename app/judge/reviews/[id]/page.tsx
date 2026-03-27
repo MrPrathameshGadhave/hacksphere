@@ -38,7 +38,7 @@ type ReviewStatus = "pending" | "in-progress" | "reviewed";
 
 type ReviewDetail = {
   id: string;
-  assignmentId: string | null;
+  assignmentId: string;
   submissionId: string;
   teamId: string;
   teamName: string;
@@ -67,7 +67,6 @@ type ReviewDetail = {
   submissionStatus: "draft" | "submitted" | "locked";
   submittedAt: string | null;
   reviewStatus: ReviewStatus;
-  source: "assigned" | "fallback";
   evaluation: {
     innovation: number;
     technicalComplexity: number;
