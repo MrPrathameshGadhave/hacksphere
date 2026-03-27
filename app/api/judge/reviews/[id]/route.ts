@@ -200,6 +200,7 @@ export async function GET(
 
     const { id } = await params;
 
+    // Validates: Only the assigned judge can fetch this review detail
     const assignment = await getPopulatedAssignment(id, currentUser.userId);
 
     if (!assignment?.submission || !assignment?.submission?.team) {
@@ -252,6 +253,7 @@ export async function PATCH(
 
     const { id } = await params;
 
+    // Validates: Only submissions explicitly assigned to this judge can be updated
     const assignment = await JudgeAssignment.findOne({
       _id: id,
       judge: currentUser.userId,

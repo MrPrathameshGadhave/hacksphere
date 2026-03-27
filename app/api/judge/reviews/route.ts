@@ -179,7 +179,6 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({
-      mode: "assigned",
       items,
       counts,
     });
