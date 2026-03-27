@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -329,7 +329,7 @@ function TeamFormModal({
   );
 }
 
-export default function ParticipantMyTeamPage() {
+function MyTeamContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const autoJoinAttemptedRef = useRef(false);
@@ -1135,7 +1135,7 @@ export default function ParticipantMyTeamPage() {
 
                               {!member.isLeader && isLeader && member.rawUser ? (
                                 <button
-                                  onClick={() => handleAskRemoveMember(member.rawUser)}
+                                  onClick={() => handleAskRemoveMember(member.rawUser!)}
                                   className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                                 >
                                   <X className="h-3.5 w-3.5" />
@@ -1243,5 +1243,13 @@ export default function ParticipantMyTeamPage() {
         loading={removeLoading}
       />
     </section>
+  );
+}
+
+export default function ParticipantMyTeamPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f3f4f6]" />}>
+      <MyTeamContent />
+    </Suspense>
   );
 }

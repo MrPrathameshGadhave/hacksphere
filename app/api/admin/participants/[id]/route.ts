@@ -41,7 +41,7 @@ async function buildParticipantResponse(userId: string) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
@@ -80,7 +80,7 @@ export async function PATCH(
       );
     }
 
-    const id = params.id;
+    const id = (await params).id;
 
     if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(

@@ -315,9 +315,16 @@ export async function POST(
       );
     }
 
-    const judgeIds = Array.isArray(body?.judgeIds)
-      ? Array.from(new Set(body.judgeIds.filter(Boolean)))
-      : [];
+    const judgeIds: string[] = Array.isArray(body?.judgeIds)
+  ? Array.from(
+      new Set(
+        body.judgeIds.filter(
+          (id: unknown): id is string =>
+            typeof id === "string" && id.trim().length > 0
+        )
+      )
+    )
+  : [];
 
     if (judgeIds.length === 0) {
       return NextResponse.json(

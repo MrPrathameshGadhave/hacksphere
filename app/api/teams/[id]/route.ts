@@ -38,11 +38,12 @@ function serializeTeam(team: any) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
+    const { id } = await params;
     const body = await request.json();
     const nextStatus = String(body.status || "").trim();
 
@@ -57,7 +58,7 @@ export async function PATCH(
     }
 
     const updatedTeam = await Team.findByIdAndUpdate(
-      params.id,
+      id,
       {
         status: nextStatus,
       },

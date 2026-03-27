@@ -98,27 +98,31 @@ export async function GET(
       return NextResponse.json({ message: "Judge not found." }, { status: 404 });
     }
 
-    const currentAssignments = await JudgeAssignment.find({
-      judge: id,
-    })
-      .populate({
-        path: "submission",
-        model: Submission,
-        populate: {
-          path: "team",
-          model: Team,
-          populate: {
-            path: "problemStatement",
-            select: "title category difficulty",
-          },
-        },
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+const currentAssignments = await JudgeAssignment.find({
+  judge: id,
+})
+  .populate({
+    path: "submission",
+    model: Submission,
+    populate: {
+      path: "team",
+      model: Team,
+      populate: {
+        path: "problemStatement",
+        select: "title category difficulty",
+      },
+    },
+  })
+  .sort({ createdAt: -1 })
+  .lean();
 
-    const assignedSubmissionIds = currentAssignments
-      .map((assignment: any) => assignment?.submission?._id)
-      .filter(Boolean);
+const validAssignments = currentAssignments.filter(
+  (assignment: any) => assignment?.submission && assignment?.submission?.team
+);
+const assignedSubmissionIds = validAssignments
+  .map((assignment) => assignment?.submission?._id)
+  .filter(Boolean)
+  .map((id) => String(id));
 
     const evaluations = assignedSubmissionIds.length
       ? await Evaluation.find({
@@ -290,9 +294,16 @@ export async function POST(
       return NextResponse.json({ message: "Judge not found." }, { status: 404 });
     }
 
-    const submissionIds = Array.isArray(body?.submissionIds)
-      ? Array.from(new Set(body.submissionIds.filter(Boolean)))
-      : [];
+  const submissionIds: string[] = Array.isArray(body?.submissionIds)
+  ? Array.from(
+      new Set(
+        body.submissionIds.filter(
+          (id: unknown): id is string =>
+            typeof id === "string" && id.trim().length > 0
+        )
+      )
+    )
+  : [];
 
     if (submissionIds.length === 0) {
       return NextResponse.json(

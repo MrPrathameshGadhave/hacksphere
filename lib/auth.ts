@@ -1,6 +1,6 @@
-import jwt from "jsonwebtoken";
+import jwt, { Secret, SignOptions } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET: Secret = process.env.JWT_SECRET || "";
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined in .env.local");
@@ -13,7 +13,7 @@ export type TokenUser = {
 };
 
 export function signToken(payload: TokenUser, expiresIn: string = "7d") {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as SignOptions);
 }
 
 export function verifyToken(token: string): TokenUser | null {

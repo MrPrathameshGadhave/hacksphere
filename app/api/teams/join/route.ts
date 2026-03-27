@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    team.members.push(decoded.userId);
+    team.members.push(new mongoose.Types.ObjectId(decoded.userId));
     await team.save();
 
     const populatedTeam = await Team.findById(team._id)
