@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
-  Clock3,
+  Clock,
   Medal,
   ShieldCheck,
   Sparkles,
@@ -502,7 +502,7 @@ export default function ParticipantLeaderboardPage() {
               <div className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                    <Clock3 className="h-5 w-5" />
+                    <Clock className="h-5 w-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-[#3B3C3E]">Tie-break rule</h3>

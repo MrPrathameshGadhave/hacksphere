@@ -2,10 +2,10 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpen,
-  Clock3,
-  FileCheck2,
+  Clock,
+  FileCheck,
   Gavel,
-  Laptop2,
+  Laptop,
   MapPinned,
   ShieldCheck,
   Sparkles,
@@ -20,13 +20,13 @@ const stages = [
     title: "Stage 1 — Online Screening Round",
     description:
       "Problem statements will be published online. Participants will prepare and submit their solutions according to the instructions shared by the organizers. Submissions will be judged online, and shortlisted teams will move to the next stage.",
-    icon: Laptop2,
+    icon: Laptop,
   },
   {
     title: "Stage 2 — 48-Hour Offline Hackathon",
     description:
       "Shortlisted teams will participate in the final 48-hour offline hackathon where they will build, improve, and present their working solutions under direct event supervision.",
-    icon: Clock3,
+    icon: Clock,
   },
 ];
 
@@ -68,7 +68,7 @@ const conductRules = [
   {
     title: "Respect Deadlines",
     text: "Late submissions may not be considered unless organizers explicitly allow exceptions.",
-    icon: FileCheck2,
+    icon: FileCheck,
   },
   {
     title: "Professional Conduct",
@@ -187,7 +187,7 @@ export default function AboutHackathonPage() {
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-[32px] border border-gray-200 bg-[#fcfcfd] p-8 shadow-sm">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F8E9ED] text-[#A01C33]">
-                <Laptop2 className="h-6 w-6" />
+                <Laptop className="h-6 w-6" />
               </div>
               <h2 className="mt-5 text-2xl font-black text-[#202225]">
                 Stage 1 — Online Round
@@ -326,12 +326,12 @@ export default function AboutHackathonPage() {
                 {
                   title: "Online Screening",
                   text: "Problem statements published online, submission collected online, judging online, results online.",
-                  icon: FileCheck2,
+                  icon: FileCheck,
                 },
                 {
                   title: "Offline Final",
                   text: "Shortlisted teams enter the 48-hour offline build and presentation phase.",
-                  icon: Clock3,
+                  icon: Clock,
                 },
                 {
                   title: "Final Recognition",

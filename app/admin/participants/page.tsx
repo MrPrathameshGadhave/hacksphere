@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  Clock3,
+  Clock,
   Filter,
   Mail,
   Search,
@@ -374,7 +374,7 @@ export default function AdminParticipantsPage() {
                   </h3>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                  <Clock3 className="h-5 w-5" />
+                  <Clock className="h-5 w-5" />
                 </div>
               </div>
             </div>
