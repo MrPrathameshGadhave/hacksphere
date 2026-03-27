@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, FileCheck2, Trophy } from "lucide-react";
+import { ArrowRight, BookOpen, FileCheck, Trophy } from "lucide-react";
 import ProblemCard from "@/components/problem-statements/ProblemCard";
 import ProblemPagination from "@/components/problem-statements/ProblemPagination";
 import PublicHeader from "@/components/layout/PublicHeader";
@@ -193,7 +193,7 @@ export default function ProblemStatementsPage() {
                   {
                     title: "Prepare the submission carefully",
                     text: "Follow the required submission format, instructions, and deadlines announced officially.",
-                    icon: FileCheck2,
+                    icon: FileCheck,
                   },
                   {
                     title: "Aim for shortlisting",

@@ -8,8 +8,8 @@ import {
   Eye,
   FileCode2,
   FileText,
+  FolderGit2,
   FolderKanban,
-  Github,
   Globe,
   Loader2,
   Lock,
@@ -961,7 +961,7 @@ export default function AdminSubmissionsPage() {
         key: "github",
         url: submission.githubLink,
         active: submission.hasGithubLink,
-        icon: <Github className={iconClass} />,
+        icon: <FolderGit2 className={iconClass} />,
         label: "GitHub",
       },
       {

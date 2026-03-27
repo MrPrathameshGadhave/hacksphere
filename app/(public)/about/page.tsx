@@ -2,10 +2,10 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpen,
-  Clock3,
-  FileCheck2,
+  Clock,
+  FileCheck,
   Gavel,
-  Laptop2,
+  Laptop,
   MapPinned,
   ShieldCheck,
   Sparkles,
@@ -26,7 +26,7 @@ const stages = [
     title: "Stage 2 — 48-Hour Offline Hackathon",
     description:
       "Shortlisted teams will participate in the final 48-hour offline hackathon where they will build, improve, and present their working solutions under direct event supervision.",
-    icon: Clock3,
+    icon: Clock,
   },
 ];
 
@@ -68,7 +68,7 @@ const conductRules = [
   {
     title: "Respect Deadlines",
     text: "Late submissions may not be considered unless organizers explicitly allow exceptions.",
-    icon: FileCheck2,
+    icon: FileCheck,
   },
   {
     title: "Professional Conduct",
@@ -326,12 +326,12 @@ export default function AboutHackathonPage() {
                 {
                   title: "Online Screening",
                   text: "Problem statements published online, submission collected online, judging online, results online.",
-                  icon: FileCheck2,
+                  icon: FileCheck,
                 },
                 {
                   title: "Offline Final",
                   text: "Shortlisted teams enter the 48-hour offline build and presentation phase.",
-                  icon: Clock3,
+                  icon: Clock,
                 },
                 {
                   title: "Final Recognition",

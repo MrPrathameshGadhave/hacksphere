@@ -4,24 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  AlertCircle,
-  ArrowLeft,
-  BookOpenText,
-  CheckCircle2,
+  CalendarDays,
+  Check,
+  ClipboardCheck,
+  Eye,
   FileCode2,
-  FileVideo,
-  Github,
+  FileText,
+  FolderGit2,
+  FolderKanban,
   Globe,
-  Image as ImageIcon,
-  Lightbulb,
   Loader2,
-  MessageSquareText,
-  Presentation,
-  Save,
+  Lock,
   Send,
   ShieldCheck,
-  Sparkles,
-  Star,
+  UserRound,
+  Users,
+  X,
 } from "lucide-react";
 import ConfirmActionModal from "@/components/modals/ConfirmActionModal";
 

@@ -4,21 +4,22 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight,
-  CheckCircle2,
+  CalendarDays,
+  Check,
   ClipboardCheck,
+  Eye,
   FileCode2,
-  FileVideo,
+  FileText,
+  FolderGit2,
   FolderKanban,
-  Github,
   Globe,
-  ImagePlus,
-  Lightbulb,
-  Link2,
-  Presentation,
-  Save,
+  Loader2,
+  Lock,
   Send,
-  Sparkles,
+  ShieldCheck,
+  UserRound,
+  Users,
+  X,
 } from "lucide-react";
 
 import ConfirmActionModal from "@/components/modals/ConfirmActionModal";
@@ -593,7 +594,7 @@ export default function ParticipantSubmissionPage() {
                   GitHub Repository Link
                 </label>
                 <div className="relative">
-                  <Github className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                  <FolderGit2 className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                   <input
                     id="githubLink"
                     name="githubLink"
