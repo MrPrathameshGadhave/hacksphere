@@ -16,6 +16,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import Footer from "@/components/layout/Footer";
 import PublicHeader from "@/components/layout/PublicHeader";
 
 const pillars = [
@@ -104,7 +105,7 @@ const highlights = [
 export default function TechTitansPage() {
   return (
     <main className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
-        <PublicHeader />
+        {/* <PublicHeader /> */}
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
@@ -386,6 +387,7 @@ export default function TechTitansPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }

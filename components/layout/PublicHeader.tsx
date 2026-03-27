@@ -19,7 +19,7 @@ export default function PublicHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/20 bg-white/55 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/45 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
+    <header className="sticky top-0 z-50 border-b border-white/20 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/75 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
         <Link href="/" className="group flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[#F8E9ED] ring-1 ring-[#A01C33]/10 transition duration-300 group-hover:scale-105 group-hover:shadow-[0_14px_28px_rgba(160,28,51,0.18)]">
@@ -75,7 +75,7 @@ export default function PublicHeader() {
               <Link
                 key={item.label}
                 href={item.href}
-                className="relative transition duration-300 hover:text-[#A01C33] after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 after:bg-[#A01C33] after:transition-all after:duration-300 hover:after:w-full"
+                className="relative text-black transition duration-300 hover:text-[#A01C33] after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 after:bg-[#A01C33] after:transition-all after:duration-300 hover:after:w-full"
               >
                 {item.label}
               </Link>
@@ -85,14 +85,14 @@ export default function PublicHeader() {
 
         <button
           onClick={() => setMobileOpen((prev) => !prev)}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/70 text-[#3B3C3E] backdrop-blur md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/30 bg-white/50 text-[#3B3C3E] backdrop-blur md:hidden"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-white/20 bg-white/70 backdrop-blur-2xl md:hidden">
+        <div className="border-t border-white/20 bg-white/70 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-4">
             {navLinks.map((item) => {
               const isPrimary = item.label === "Register";
@@ -108,7 +108,7 @@ export default function PublicHeader() {
                       ? "bg-[#A01C33] text-white shadow-md"
                       : isSecondary
                       ? "border border-[#A01C33]/20 bg-[#F8E9ED] text-[#A01C33]"
-                      : "text-[#3B3C3E] hover:bg-white/80 hover:text-[#A01C33]"
+                      : "text-black hover:bg-white/80 hover:text-[#A01C33]"
                   }`}
                 >
                   {item.label}

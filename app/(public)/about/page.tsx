@@ -13,6 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import PublicHeader from "@/components/layout/PublicHeader";
+import Footer from "@/components/layout/Footer";
+
 const stages = [
   {
     title: "Stage 1 — Online Screening Round",
@@ -82,8 +84,7 @@ const conductRules = [
 
 export default function AboutHackathonPage() {
   return (
-    <main className="min-h-screen bg-[#F6F7FB] text-[#3B3C3E]">
-      <PublicHeader />
+    <main className="min-h-screen bg-[#FAFAFA] text-[#3B3C3E]">
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
@@ -361,6 +362,7 @@ export default function AboutHackathonPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </main>
   );
 }
