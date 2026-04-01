@@ -1,51 +1,55 @@
 import { z } from "zod";
 
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters")
+  .max(50, "Name must be less than 50 characters");
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, "Email is required")
+  .email("Enter a valid email address")
+  .transform((value) => value.toLowerCase());
+
+const passwordSchema = z
+  .string()
+  .min(6, "Password must be at least 6 characters")
+  .max(100, "Password must be less than 100 characters")
+  .refine((value) => /[A-Za-z]/.test(value), {
+    message: "Password must include at least one letter",
+  })
+  .refine((value) => /[0-9]/.test(value), {
+    message: "Password must include at least one number",
+  });
+
+const collegeSchema = z
+  .string()
+  .trim()
+  .min(2, "College name is required")
+  .max(100, "College name must be less than 100 characters");
+
 export const signupSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must be less than 50 characters"),
-
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
-
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(100, "Password must be less than 100 characters"),
-
-  college: z
-    .string()
-    .min(2, "College name is required")
-    .max(100, "College name must be less than 100 characters"),
+  name: nameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  college: collegeSchema,
 });
 
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
+  email: emailSchema,
 
   password: z.string().min(1, "Password is required"),
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
+  email: emailSchema,
 });
 
 export const resetPasswordSchema = z.object({
-  token: z
-    .string()
-    .min(1, "Reset token is required"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(100, "Password must be less than 100 characters"),
+  token: z.string().trim().min(1, "Reset token is required"),
+  password: passwordSchema,
   confirmPassword: z
     .string()
     .min(1, "Confirm password is required"),
@@ -55,49 +59,18 @@ export const resetPasswordSchema = z.object({
 });
 
 export const judgeSignupSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must be less than 50 characters"),
-
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
-
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(100, "Password must be less than 100 characters"),
-
-  college: z
-    .string()
-    .min(2, "College name is required")
-    .max(100, "College name must be less than 100 characters"),
-
-  accessCode: z
-    .string()
-    .min(1, "Judge access code is required"),
+  name: nameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  college: collegeSchema,
+  accessCode: z.string().trim().min(1, "Judge access code is required"),
 });
+
 export const adminSignupSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must be less than 50 characters"),
-
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
-
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(100, "Password must be less than 100 characters"),
-
-  accessCode: z
-    .string()
-    .min(1, "Admin access code is required"),
+  name: nameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  accessCode: z.string().trim().min(1, "Admin access code is required"),
 });
 
 export type AdminSignupInput = z.infer<typeof adminSignupSchema>;

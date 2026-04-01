@@ -5,59 +5,9 @@ import { verifyToken } from "@/lib/auth";
 import Team from "@/models/Team";
 import Submission from "@/models/Submission";
 import { isSubmissionDeadlinePassed } from "@/lib/hackathon";
+import { submissionCreateSchema } from "@/lib/validations/submission";
 import "@/models/User";
 import "@/models/ProblemStatement";
-
-function normalizeText(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeTechStack(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function validateFinalSubmission(input: {
-  projectTitle: string;
-  description: string;
-  githubLink: string;
-  demoLink: string;
-  techStack: string[];
-}) {
-  if (input.projectTitle.length < 3) {
-    return "Project title is required";
-  }
-
-  if (input.description.length < 20) {
-    return "Project description must be at least 20 characters";
-  }
-
-  if (!input.githubLink) {
-    return "GitHub repository link is required";
-  }
-
-  if (!input.demoLink) {
-    return "Demo link is required";
-  }
-
-  if (input.techStack.length === 0) {
-    return "Tech stack is required";
-  }
-
-  return null;
-}
 
 async function getLeaderTeam(userId: string) {
   return Team.findOne({ leader: userId })
@@ -174,37 +124,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const validatedFields = submissionCreateSchema.safeParse(body);
 
-    const projectTitle = normalizeText(body?.projectTitle);
-    const description = normalizeText(body?.description);
-    const githubLink = normalizeText(body?.githubLink);
-    const demoLink = normalizeText(body?.demoLink);
-    const pptLink = normalizeText(body?.pptLink);
-    const videoLink = normalizeText(body?.videoLink);
-    const techStack = normalizeTechStack(body?.techStack);
-
-    const status: "draft" | "submitted" =
-      body?.status === "submitted" ? "submitted" : "draft";
-
-    if (status === "submitted") {
-      const validationMessage = validateFinalSubmission({
-        projectTitle,
-        description,
-        githubLink,
-        demoLink,
-        techStack,
-      });
-
-      if (validationMessage) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: validationMessage,
-          },
-          { status: 400 }
-        );
-      }
+    if (!validatedFields.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation failed",
+          errors: validatedFields.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
     }
+
+    const {
+      projectTitle,
+      description,
+      githubLink,
+      demoLink,
+      pptLink,
+      videoLink,
+      techStack,
+      images,
+      status,
+    } = validatedFields.data;
 
     const submission = await Submission.create({
       team: team._id,
@@ -215,7 +158,7 @@ export async function POST(request: NextRequest) {
       pptLink,
       videoLink,
       techStack,
-      images: [],
+      images,
       status,
       submittedAt: status === "submitted" ? new Date() : null,
     });

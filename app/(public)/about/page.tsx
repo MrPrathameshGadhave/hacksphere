@@ -17,13 +17,13 @@ import Footer from "@/components/layout/Footer";
 
 const stages = [
   {
-    title: "Stage 1 — Online Screening Round",
+    title: "Stage 1 - Online Screening Round",
     description:
       "Problem statements will be published online. Participants will prepare and submit their solutions according to the instructions shared by the organizers. Submissions will be judged online, and shortlisted teams will move to the next stage.",
     icon: Laptop,
   },
   {
-    title: "Stage 2 — 48-Hour Offline Hackathon",
+    title: "Stage 2 - 48-Hour Offline Hackathon",
     description:
       "Shortlisted teams will participate in the final 48-hour offline hackathon where they will build, improve, and present their working solutions under direct event supervision.",
     icon: Clock,
@@ -38,7 +38,7 @@ const rules = [
   "All submissions must be original work created by the participating team.",
   "Copied projects, plagiarism, or unfair external assistance may lead to direct disqualification.",
   "Teams must follow the submission format and deadlines announced on the platform.",
-  "Judges’ decisions during screening and final evaluation will be considered final.",
+  "Judges' decisions during screening and final evaluation will be considered final.",
   "Participants must maintain professional and respectful conduct throughout the event.",
   "Any violation of rules, misconduct, or misuse of the platform may result in removal from the hackathon.",
 ];
@@ -91,7 +91,7 @@ export default function AboutHackathonPage() {
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
               <div className="inline-flex items-center rounded-full border border-[#A01C33]/10 bg-[#A01C33]/5 px-4 py-2 text-sm font-semibold text-[#A01C33]">
-                About Hackathon • HackSphere Event Guide
+                About Hackathon | HackSphere Event Guide
               </div>
 
               <h1 className="mt-5 text-4xl font-black tracking-tight text-[#1F2937] sm:text-5xl">
@@ -190,7 +190,7 @@ export default function AboutHackathonPage() {
                 <Laptop className="h-6 w-6" />
               </div>
               <h2 className="mt-5 text-2xl font-black text-[#202225]">
-                Stage 1 — Online Round
+                Stage 1 - Online Round
               </h2>
               <div className="mt-5 space-y-3">
                 {onlineRoundPoints.map((point) => (
@@ -209,7 +209,7 @@ export default function AboutHackathonPage() {
                 <MapPinned className="h-6 w-6" />
               </div>
               <h2 className="mt-5 text-2xl font-black text-[#202225]">
-                Stage 2 — Offline Final Round
+                Stage 2 - Offline Final Round
               </h2>
               <div className="mt-5 space-y-3">
                 {offlineRoundPoints.map((point) => (

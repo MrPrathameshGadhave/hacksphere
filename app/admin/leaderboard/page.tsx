@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
+  Download,
   Eye,
   Medal,
   Search,
@@ -51,6 +52,7 @@ type LeaderboardApiResponse = {
   success: boolean;
   publishState: PublishState;
   publishedAt: string | null;
+  recalculatedAt?: string | null;
   rows: LeaderboardRow[];
   stats: {
     totalTeams: number;
@@ -66,6 +68,27 @@ const reviewStatusStyles = {
   Completed: "bg-green-100 text-green-700",
   Pending: "bg-amber-100 text-amber-700",
 };
+
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "Not available";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
 
 function RankingDetailModal({
   open,
@@ -257,6 +280,9 @@ export default function AdminLeaderboardPage() {
   const [error, setError] = useState("");
   const [bannerMessage, setBannerMessage] = useState("");
   const [selectedRow, setSelectedRow] = useState<LeaderboardRow | null>(null);
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [recalculatedAt, setRecalculatedAt] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchLeaderboard = async () => {
     try {
@@ -284,6 +310,8 @@ export default function AdminLeaderboardPage() {
       setTopThree(Array.isArray(data.topThree) ? data.topThree : []);
       setStats(data.stats);
       setPublishState(data.publishState);
+      setPublishedAt(data.publishedAt || null);
+      setRecalculatedAt(data.recalculatedAt || new Date().toISOString());
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch leaderboard."
@@ -296,6 +324,8 @@ export default function AdminLeaderboardPage() {
         highestScore: 0,
         averageScore: "0.0",
       });
+      setPublishedAt(null);
+      setRecalculatedAt(null);
     } finally {
       setLoading(false);
     }
@@ -315,6 +345,19 @@ export default function AdminLeaderboardPage() {
     });
   }, [rows, searchTerm]);
 
+  const completedTeams = rows.filter(
+    (row) => row.reviewStatus === "Completed"
+  ).length;
+  const pendingTeams = rows.filter((row) => row.reviewStatus === "Pending").length;
+  const publishReadiness = calculatePercentage(completedTeams, rows.length);
+  const filteredCompletedTeams = filteredRows.filter(
+    (row) => row.reviewStatus === "Completed"
+  ).length;
+  const averageAssignedJudges = rows.length
+    ? (rows.reduce((sum, row) => sum + row.assignedJudges, 0) / rows.length).toFixed(1)
+    : "0.0";
+  const hasSearchTerm = searchTerm.trim().length > 0;
+
   const handlePublishStateChange = async (nextState: PublishState) => {
     try {
       setPublishLoading(true);
@@ -332,7 +375,13 @@ export default function AdminLeaderboardPage() {
       });
 
       const data = (await response.json().catch(() => null)) as
-        | { success?: boolean; message?: string; publishState?: PublishState }
+        | {
+            success?: boolean;
+            message?: string;
+            publishState?: PublishState;
+            publishedAt?: string | null;
+            recalculatedAt?: string | null;
+          }
         | null;
 
       if (!response.ok || !data?.success) {
@@ -340,6 +389,16 @@ export default function AdminLeaderboardPage() {
       }
 
       setPublishState(data.publishState || nextState);
+      setPublishedAt(
+        nextState === "Published"
+          ? data?.publishedAt || new Date().toISOString()
+          : null
+      );
+      setRecalculatedAt(
+        data?.recalculatedAt
+          ? data.recalculatedAt
+          : new Date().toISOString()
+      );
       setBannerMessage(
         data.message ||
           (nextState === "Published"
@@ -363,45 +422,177 @@ export default function AdminLeaderboardPage() {
     );
   };
 
+  const handleExportEvaluationsCsv = async () => {
+    try {
+      setExportLoading(true);
+      setError("");
+      setBannerMessage("");
+
+      const response = await fetch("/api/admin/leaderboard/export", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+
+        throw new Error(
+          data?.message || "Failed to export leaderboard evaluations."
+        );
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename=\"?([^"]+)\"?/i);
+      const filename =
+        filenameMatch?.[1] || "leaderboard-evaluations-export.csv";
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setBannerMessage(
+        "Leaderboard evaluation CSV downloaded successfully."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to export leaderboard evaluations."
+      );
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <>
       <section className="space-y-6">
-        <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.28)] lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+        <div className="overflow-hidden rounded-[32px] border border-[#ead7de] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f5_42%,#fff7fa_100%)] p-8 shadow-[0_20px_55px_rgba(160,28,51,0.08)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-                Leaderboard Management • Admin Control
+              <div className="inline-flex items-center rounded-full border border-[#ead7de] bg-white/90 px-4 py-2 text-sm font-semibold text-[#9d5f6d] shadow-sm">
+                Leaderboard Command / Admin Control
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                Review rankings, validate scores, and publish the official leaderboard.
+              <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight text-[#2e1f25] sm:text-4xl">
+                Review rankings, validate judging coverage, and release official results from one surface.
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                Track real evaluation averages, verify completed judging coverage,
-                inspect ranking order, and publish the leaderboard when results are ready.
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+                Track score quality, spot pending evaluations, confirm podium order,
+                and publish the leaderboard only when the event is fully ready for
+                participants to see.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    State
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : publishState}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Ranked Teams
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : rows.length}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Ready to Publish
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : `${publishReadiness}%`}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Leaderboard State</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {loading ? "—" : publishState}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Current visibility state for participants.
-                </p>
+            <div className="grid gap-4">
+              <div className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[#A01C33]">
+                      Release Readiness
+                    </p>
+                    <h3 className="mt-1 text-2xl font-bold text-[#2e1f25]">
+                      {loading ? "..." : `${completedTeams}/${rows.length} complete`}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      {loading
+                        ? "Checking leaderboard readiness..."
+                        : `${pendingTeams} teams still need review completion before the board is fully settled.`}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Judging completion</span>
+                      <span>{loading ? "..." : `${publishReadiness}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f2e9ec]">
+                      <div
+                        className="h-2 rounded-full bg-[#A01C33] transition-all"
+                        style={{ width: `${publishReadiness}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">
+                      Recalculated
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[#3B3C3E]">
+                      {loading ? "Loading..." : formatDateTime(recalculatedAt)}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Teams Ranked</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {loading ? "—" : rows.length}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Score-based ranking order is available.
-                </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Published On
+                  </p>
+                  <p className="mt-2 text-base font-bold text-[#2e1f25]">
+                    {loading ? "Loading..." : formatDateTime(publishedAt)}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Official release time for participants when results go live.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Avg Assigned Judges
+                  </p>
+                  <p className="mt-2 text-2xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : averageAssignedJudges}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Average judge assignment load across ranked submissions.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -427,6 +618,9 @@ export default function AdminLeaderboardPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.totalTeams}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Ranked team submissions currently included in the official board.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Users className="h-5 w-5" />
@@ -441,6 +635,9 @@ export default function AdminLeaderboardPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.completedReviews}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Submitted judge evaluations already contributing to final scores.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
                 <CheckCircle2 className="h-5 w-5" />
@@ -455,6 +652,9 @@ export default function AdminLeaderboardPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.highestScore}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Current leading average score across all ranked projects.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <Trophy className="h-5 w-5" />
@@ -469,6 +669,9 @@ export default function AdminLeaderboardPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.averageScore}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Overall event scoring trend based on submitted review averages.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
                 <BarChart3 className="h-5 w-5" />
@@ -485,10 +688,14 @@ export default function AdminLeaderboardPage() {
                 <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
                   Podium snapshot
                 </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                  A quick leadership view of the top-ranked teams before you review
+                  the full table and publish the final board.
+                </p>
               </div>
 
               <div className="rounded-2xl bg-[#A01C33]/10 px-4 py-2 text-sm font-semibold text-[#A01C33]">
-                Live Preview
+                {loading ? "Preparing preview" : `${publishState} preview`}
               </div>
             </div>
 
@@ -556,6 +763,10 @@ export default function AdminLeaderboardPage() {
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
                 Leaderboard visibility
               </h2>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Use draft while validating scores internally, then switch to
+                published once the final ranking is ready for participants.
+              </p>
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
@@ -565,6 +776,20 @@ export default function AdminLeaderboardPage() {
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-gray-500">
                     Participants will only see official rankings after publishing.
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-gray-500">
+                    {recalculatedAt
+                      ? `Rankings were recalculated from the latest submitted judge evaluations on ${formatDateTime(
+                          recalculatedAt
+                        )}.`
+                      : "Rankings recalculate whenever this leaderboard data is refreshed."}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-gray-500">
+                    {publishedAt
+                      ? `The board was last released publicly on ${formatDateTime(
+                          publishedAt
+                        )}.`
+                      : "This leaderboard has not been published publicly yet."}
                   </p>
                 </div>
 
@@ -607,10 +832,48 @@ export default function AdminLeaderboardPage() {
             </div>
 
             <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-              <p className="text-sm font-medium text-[#A01C33]">Admin Reminder</p>
+              <p className="text-sm font-medium text-[#A01C33]">Data Export</p>
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                Before publishing
+                Download judging records
               </h2>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Export a clean evaluation package for audits, reporting, or final
+                event documentation.
+              </p>
+
+              <div className="mt-6 rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+                <p className="text-sm font-medium text-gray-500">
+                  Export format
+                </p>
+                <p className="mt-2 text-sm leading-7 text-gray-500">
+                  Download one CSV with ranked submissions, averaged rubric scores,
+                  and each submitted judge evaluation including feedback.
+                </p>
+
+                <button
+                  onClick={handleExportEvaluationsCsv}
+                  disabled={exportLoading}
+                  className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {exportLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Export Evaluation CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+              <p className="text-sm font-medium text-[#A01C33]">Release Checklist</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                Final checks before release
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                A quick operator checklist for verifying that the board is safe to
+                make public.
+              </p>
 
               <div className="mt-6 space-y-4">
                 {[
@@ -665,6 +928,10 @@ export default function AdminLeaderboardPage() {
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
                 Search and review leaderboard rows
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Use this table to validate rank order, inspect review completion,
+                and open any row for a deeper ranking breakdown.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -679,6 +946,15 @@ export default function AdminLeaderboardPage() {
                 />
               </div>
 
+              {hasSearchTerm ? (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Clear Search
+                </button>
+              ) : null}
+
               <button
                 onClick={fetchLeaderboard}
                 className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
@@ -689,10 +965,23 @@ export default function AdminLeaderboardPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl bg-[#f8f8f9] px-4 py-3 text-sm font-medium text-gray-600">
-            Showing{" "}
-            <span className="font-bold text-[#3B3C3E]">{filteredRows.length}</span>{" "}
-            ranking records
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+              Showing{" "}
+              <span className="font-bold text-[#2e1f25]">{filteredRows.length}</span>{" "}
+              ranking records in the current view.{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredCompletedTeams}
+              </span>{" "}
+              already have completed judging.
+            </div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4 text-sm text-gray-500">
+              <span className="font-semibold text-[#3B3C3E]">
+                {loading ? "..." : pendingTeams}
+              </span>{" "}
+              teams still show pending review status across the full leaderboard.
+            </div>
           </div>
 
           <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-gray-200 xl:block">

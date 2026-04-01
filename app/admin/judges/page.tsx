@@ -12,6 +12,7 @@ import {
   Scale,
   Search,
   ShieldCheck,
+  Sparkles,
   Star,
   UserCog,
   UserRoundCheck,
@@ -110,6 +111,11 @@ function getSubmissionStatusBadge(status: "draft" | "submitted" | "locked") {
   return "bg-gray-100 text-gray-700";
 }
 
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 function JudgeManagementModal({
   open,
   onClose,
@@ -193,9 +199,12 @@ function JudgeManagementModal({
         className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-white/15 bg-white shadow-[0_25px_80px_rgba(15,23,42,0.28)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5 sm:px-7">
+        <div className="border-b border-gray-200 bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-6 py-5 sm:px-7">
+          <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-[#A01C33]">Judge Management</p>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#9a6773]">
+              Judge Management
+            </div>
             <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
               {loading ? "Loading judge..." : data?.judge.name || "Judge Details"}
             </h2>
@@ -210,6 +219,7 @@ function JudgeManagementModal({
           >
             <X className="h-5 w-5" />
           </button>
+          </div>
         </div>
 
         <div className="max-h-[calc(100vh-180px)] flex-1 overflow-y-auto px-6 py-6 sm:px-7">
@@ -663,6 +673,28 @@ export default function AdminJudgesPage() {
     });
   }, [judges, searchTerm, statusFilter]);
 
+  const activeRate = useMemo(
+    () => calculatePercentage(stats.active, stats.total),
+    [stats.active, stats.total]
+  );
+
+  const assignmentCoverageRate = useMemo(
+    () => calculatePercentage(stats.assigned, stats.total),
+    [stats.assigned, stats.total]
+  );
+
+  const filteredActiveCount = useMemo(
+    () => filteredJudges.filter((judge) => judge.status === "Active").length,
+    [filteredJudges]
+  );
+
+  const filteredPendingCount = useMemo(
+    () => filteredJudges.filter((judge) => judge.status === "Pending").length,
+    [filteredJudges]
+  );
+
+  const hasActiveFilters = searchTerm.trim().length > 0 || statusFilter !== "All";
+
   const closeManagementModal = () => {
     setManagementOpen(false);
     setSelectedJudgeId(null);
@@ -774,11 +806,14 @@ export default function AdminJudgesPage() {
 
   const handleJudgeStatusChange = async (
     judgeId: string,
-    action: "activate" | "pending" | "block"
+    action: "activate" | "pending" | "block",
+    currentStatus?: JudgeStatus
   ) => {
     const confirmText =
       action === "activate"
-        ? "Activate this judge?"
+        ? currentStatus === "Pending"
+          ? "Approve this judge?"
+          : "Activate this judge?"
         : action === "pending"
         ? "Mark this judge as pending?"
         : "Block this judge?";
@@ -826,41 +861,80 @@ export default function AdminJudgesPage() {
 
   return (
     <section className="space-y-6">
-      <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.28)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+      <div className="overflow-hidden rounded-[34px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfc_0%,#fff4f2_48%,#f8fafc_100%)] p-8 shadow-[0_24px_60px_rgba(74,36,48,0.08)] lg:p-10">
+        <div className="grid gap-8 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
           <div>
-            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-              Judge Management • Admin Control
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white/85 px-4 py-2 text-sm font-semibold text-[#9a6773]">
+              <Sparkles className="h-4 w-4 text-[#A01C33]" />
+              Judge Operations
             </div>
 
-            <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-              Manage judge accounts, assignments, and review readiness.
+            <h1 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-tight text-[#22171c] sm:text-4xl">
+              Control judge approvals, assignment health, and review capacity from one cleaner admin surface.
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-              Monitor judge availability, review completion, and submission assignment health across HackSphere.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+              Monitor judge availability, review completion, and assignment movement without digging through unnecessary admin noise.
             </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                Active judges: <span className="text-[#A01C33]">{isLoading ? "..." : stats.active}</span>
+              </div>
+              <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                Assigned judges: <span className="text-[#A01C33]">{isLoading ? "..." : stats.assigned}</span>
+              </div>
+              <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                In current view: <span className="text-[#A01C33]">{isLoading ? "..." : filteredJudges.length}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Filtered Result</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {isLoading ? "—" : filteredJudges.length}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                Judges currently visible in this view.
+          <div className="space-y-4">
+            <div className="rounded-[28px] border border-[#eadfe3] bg-white/88 p-6 shadow-sm">
+              <p className="text-sm font-medium text-[#9a6773]">Judge Readiness</p>
+              <div className="mt-2 flex items-center justify-between gap-4">
+                <h3 className="text-3xl font-black text-[#22171c]">
+                  {isLoading ? "..." : `${activeRate}%`}
+                </h3>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                  <UserRoundCheck className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                {isLoading
+                  ? "Loading judge readiness..."
+                  : `${stats.active} of ${stats.total} judges are currently active and available for operational work.`}
               </p>
+
+              <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#f3e8ec]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,#a01c33_0%,#d27b8d_100%)] transition-all"
+                  style={{ width: `${Math.min(activeRate, 100)}%` }}
+                />
+              </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Review Progress</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {isLoading ? "—" : stats.totalReviews}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                Submitted reviews completed by all judges so far.
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                <p className="text-sm font-medium text-[#9a6773]">Assignment Coverage</p>
+                <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                  {isLoading ? "..." : `${assignmentCoverageRate}%`}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                  Judges with active submission assignments in the current system.
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                <p className="text-sm font-medium text-[#9a6773]">Completed Reviews</p>
+                <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                  {isLoading ? "..." : stats.totalReviews}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                  Submitted reviews completed by the judging panel so far.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -884,99 +958,120 @@ export default function AdminJudgesPage() {
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Judges</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.total}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-              <UserCog className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Assigned Judges</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.assigned}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-              <UserRoundCheck className="h-5 w-5" />
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Judges</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.total}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  All judge accounts currently stored in the admin system.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <UserCog className="h-5 w-5" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Completed Reviews</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.totalReviews}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
-              <ClipboardCheck className="h-5 w-5" />
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Assigned Judges</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.assigned}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Judges already handling at least one assigned submission.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                <UserRoundCheck className="h-5 w-5" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Active</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.active}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
-              <CheckCircle2 className="h-5 w-5" />
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Completed Reviews</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.totalReviews}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Submitted reviews recorded by the judging panel.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                <ClipboardCheck className="h-5 w-5" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Pending</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.pending}
-              </h3>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-              <Clock className="h-5 w-5" />
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Active</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.active}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Judges approved and ready for operational assignment.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Blocked</p>
-              <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
-                {isLoading ? "—" : stats.blocked}
-              </h3>
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Pending</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.pending}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Accounts still waiting for organizer approval.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <Clock className="h-5 w-5" />
+              </div>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
-              <XCircle className="h-5 w-5" />
-            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Blocked</p>
+                <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                  {isLoading ? "..." : stats.blocked}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Judge accounts that have been restricted from access.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                <XCircle className="h-5 w-5" />
+              </div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-medium text-[#A01C33]">Judge Records</p>
             <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-              Search and manage judges
+              Search, filter, and manage judge operations
             </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+              Focus on pending and blocked judges first, then manage assignments and review output from the same operational surface.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -1012,13 +1107,36 @@ export default function AdminJudgesPage() {
               <RefreshCcw className="h-4 w-4" />
               Refresh
             </button>
+
+            {hasActiveFilters ? (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("All");
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+              >
+                Clear Filters
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-[#f8f8f9] px-4 py-3 text-sm font-medium text-gray-600">
-          Showing{" "}
-          <span className="font-bold text-[#3B3C3E]">{filteredJudges.length}</span>{" "}
-          judge records
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+          <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+            Showing{" "}
+            <span className="font-bold text-[#2e1f25]">{filteredJudges.length}</span>{" "}
+            judge records in the current view.{" "}
+            <span className="font-semibold text-[#A01C33]">{filteredActiveCount}</span>{" "}
+            are active and{" "}
+            <span className="font-semibold text-[#A01C33]">{filteredPendingCount}</span>{" "}
+            are still pending review.
+          </div>
+
+          <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4 text-sm text-gray-500">
+            <span className="font-semibold text-[#3B3C3E]">{stats.assigned}</span>{" "}
+            judges are currently carrying assignment load across the event.
+          </div>
         </div>
 
         {isLoading ? (
@@ -1039,8 +1157,8 @@ export default function AdminJudgesPage() {
           </div>
         ) : (
           <>
-            <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-gray-200 xl:block">
-              <div className="grid grid-cols-[1.3fr_1.8fr_1.25fr_1fr_1fr_1.2fr_1fr_1.2fr] gap-4 bg-[#f8f8f9] px-5 py-4 text-sm font-semibold text-[#3B3C3E]">
+            <div className="mt-6 hidden overflow-hidden rounded-[26px] border border-gray-200 xl:block">
+              <div className="grid grid-cols-[1.3fr_1.8fr_1.25fr_1fr_1fr_1.2fr_1fr_1.2fr] gap-4 bg-[linear-gradient(180deg,#fcfcfd_0%,#f7f7f8_100%)] px-5 py-4 text-sm font-semibold text-[#3B3C3E]">
                 <div>Name</div>
                 <div>Email</div>
                 <div>Expertise</div>
@@ -1057,7 +1175,7 @@ export default function AdminJudgesPage() {
                     key={judge.id}
                     className="grid grid-cols-[1.3fr_1.8fr_1.25fr_1fr_1fr_1.2fr_1fr_1.2fr] gap-4 bg-white px-5 py-4 text-sm text-[#3B3C3E] transition hover:bg-[#fcfcfd]"
                   >
-                    <div className="font-semibold">{judge.name}</div>
+                    <div className="font-semibold text-[#26161d]">{judge.name}</div>
                     <div className="truncate text-gray-500">{judge.email}</div>
                     <div>{judge.expertise}</div>
                     <div>{judge.assignedProjects}</div>
@@ -1090,9 +1208,16 @@ export default function AdminJudgesPage() {
                         ...(judge.status !== "Active"
                           ? [
                               {
-                                label: "Activate Judge",
+                                label:
+                                  judge.status === "Pending"
+                                    ? "Approve Judge"
+                                    : "Activate Judge",
                                 onClick: () =>
-                                  handleJudgeStatusChange(judge.id, "activate"),
+                                  handleJudgeStatusChange(
+                                    judge.id,
+                                    "activate",
+                                    judge.status
+                                  ),
                               },
                             ]
                           : []),
@@ -1101,7 +1226,11 @@ export default function AdminJudgesPage() {
                               {
                                 label: "Mark Pending",
                                 onClick: () =>
-                                  handleJudgeStatusChange(judge.id, "pending"),
+                                  handleJudgeStatusChange(
+                                    judge.id,
+                                    "pending",
+                                    judge.status
+                                  ),
                               },
                             ]
                           : []),
@@ -1111,7 +1240,11 @@ export default function AdminJudgesPage() {
                                 label: "Block Judge",
                                 variant: "danger" as const,
                                 onClick: () =>
-                                  handleJudgeStatusChange(judge.id, "block"),
+                                  handleJudgeStatusChange(
+                                    judge.id,
+                                    "block",
+                                    judge.status
+                                  ),
                               },
                             ]
                           : []),
@@ -1126,7 +1259,7 @@ export default function AdminJudgesPage() {
               {filteredJudges.map((judge) => (
                 <div
                   key={judge.id}
-                  className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5"
+                  className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1144,7 +1277,7 @@ export default function AdminJudgesPage() {
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                         Expertise
                       </p>
@@ -1153,7 +1286,7 @@ export default function AdminJudgesPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                         Institution
                       </p>
@@ -1162,7 +1295,7 @@ export default function AdminJudgesPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                         Assigned Projects
                       </p>
@@ -1171,7 +1304,7 @@ export default function AdminJudgesPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                         Completed Reviews
                       </p>
@@ -1206,9 +1339,36 @@ export default function AdminJudgesPage() {
                       Assign
                     </button>
 
+                    {judge.status === "Pending" && (
+                      <button
+                        onClick={() =>
+                          handleJudgeStatusChange(
+                            judge.id,
+                            "activate",
+                            judge.status
+                          )
+                        }
+                        disabled={statusUpdatingJudgeId === judge.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {statusUpdatingJudgeId === judge.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Approve
+                      </button>
+                    )}
+
                     {judge.status !== "Blocked" && (
                       <button
-                        onClick={() => handleJudgeStatusChange(judge.id, "block")}
+                        onClick={() =>
+                          handleJudgeStatusChange(
+                            judge.id,
+                            "block",
+                            judge.status
+                          )
+                        }
                         disabled={statusUpdatingJudgeId === judge.id}
                         className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#3B3C3E] transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -1224,7 +1384,11 @@ export default function AdminJudgesPage() {
                     {judge.status === "Blocked" && (
                       <button
                         onClick={() =>
-                          handleJudgeStatusChange(judge.id, "activate")
+                          handleJudgeStatusChange(
+                            judge.id,
+                            "activate",
+                            judge.status
+                          )
                         }
                         disabled={statusUpdatingJudgeId === judge.id}
                         className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"

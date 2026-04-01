@@ -7,6 +7,7 @@ export interface IUser extends Document {
   role: "participant" | "judge" | "admin";
   college?: string;
   phone?: string;
+  bio?: string;
   avatar?: string;
   isApproved: boolean;
   judgeStatus?: "active" | "pending" | "blocked";
@@ -45,6 +46,11 @@ const UserSchema = new Schema<IUser>(
       default: "",
     },
     phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    bio: {
       type: String,
       trim: true,
       default: "",

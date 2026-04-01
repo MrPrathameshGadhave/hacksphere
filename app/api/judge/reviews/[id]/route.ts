@@ -5,6 +5,7 @@ import { verifyToken } from "@/lib/auth";
 import "@/models/User";
 import "@/models/ProblemStatement";
 
+import User from "@/models/User";
 import Submission from "@/models/Submission";
 import Team from "@/models/Team";
 import Evaluation from "@/models/Evaluation";
@@ -179,6 +180,39 @@ function buildDetailPayload({
   };
 }
 
+async function ensureActiveJudge(userId: string) {
+  const judge = await User.findOne({
+    _id: userId,
+    role: "judge",
+  }).select("isApproved judgeStatus");
+
+  if (!judge) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
+  if (judge.judgeStatus === "blocked") {
+    return NextResponse.json(
+      {
+        message:
+          "Your judge account has been blocked. Please contact the organizers.",
+      },
+      { status: 403 }
+    );
+  }
+
+  if (judge.judgeStatus !== "active" || judge.isApproved === false) {
+    return NextResponse.json(
+      {
+        message:
+          "Your judge account is pending admin approval. Please wait for approval before accessing judge tools.",
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -196,6 +230,12 @@ export async function GET(
 
     if (!currentUser || currentUser.role !== "judge") {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const judgeAccessError = await ensureActiveJudge(currentUser.userId);
+
+    if (judgeAccessError) {
+      return judgeAccessError;
     }
 
     const { id } = await params;
@@ -251,6 +291,12 @@ export async function PATCH(
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const judgeAccessError = await ensureActiveJudge(currentUser.userId);
+
+    if (judgeAccessError) {
+      return judgeAccessError;
+    }
+
     const { id } = await params;
 
     // Validates: Only submissions explicitly assigned to this judge can be updated
@@ -269,7 +315,6 @@ export async function PATCH(
     const submissionId = String(assignment.submission);
 
     const body = await request.json();
-    const confirmSubmittedEdit = Boolean(body?.confirmSubmittedEdit);
 
     const innovation = normalizeScore(body?.innovation);
     const technicalComplexity = normalizeScore(body?.technicalComplexity);
@@ -334,30 +379,11 @@ export async function PATCH(
       judge: currentUser.userId,
     });
 
-    if (existingEvaluation?.status === "submitted" && status !== "submitted") {
-      return NextResponse.json(
-        { message: "Submitted reviews cannot be moved back to draft." },
-        { status: 400 }
-      );
-    }
-
+    // CRITICAL: Once submitted, evaluation is locked and cannot be modified
     if (existingEvaluation?.status === "submitted") {
-      const submittedReviewChanged = hasSubmittedEvaluationChanged(
-        existingEvaluation,
+      return NextResponse.json(
         {
-          innovation,
-          technicalComplexity,
-          uiUx,
-          impact,
-          presentation,
-          feedback,
-          status,
-        }
-      );
-
-      if (!submittedReviewChanged) {
-        return NextResponse.json({
-          message: "No changes detected in the submitted review.",
+          message: "This evaluation has been submitted and cannot be modified. Submitted evaluations are locked.",
           evaluation: {
             innovation: existingEvaluation.innovation,
             technicalComplexity: existingEvaluation.technicalComplexity,
@@ -371,32 +397,10 @@ export async function PATCH(
             updatedAt: existingEvaluation.updatedAt,
           },
           reviewStatus: getReviewStatus(existingEvaluation),
-        });
-      }
-
-      if (!confirmSubmittedEdit) {
-        return NextResponse.json(
-          {
-            message:
-              "This review has already been submitted. Confirm before updating it.",
-            requiresConfirmation: true,
-            evaluation: {
-              innovation: existingEvaluation.innovation,
-              technicalComplexity: existingEvaluation.technicalComplexity,
-              uiUx: existingEvaluation.uiUx,
-              impact: existingEvaluation.impact,
-              presentation: existingEvaluation.presentation,
-              totalScore: existingEvaluation.totalScore,
-              feedback: existingEvaluation.feedback,
-              status: existingEvaluation.status,
-              submittedAt: existingEvaluation.submittedAt,
-              updatedAt: existingEvaluation.updatedAt,
-            },
-            reviewStatus: getReviewStatus(existingEvaluation),
-          },
-          { status: 409 }
-        );
-      }
+          isLocked: true,
+        },
+        { status: 403 }
+      );
     }
 
     const evaluation =
@@ -422,9 +426,7 @@ export async function PATCH(
     return NextResponse.json({
       message:
         status === "submitted"
-          ? existingEvaluation?.status === "submitted"
-            ? "Submitted review updated successfully."
-            : "Review submitted successfully."
+          ? "Review submitted successfully."
           : "Review draft saved successfully.",
       evaluation: {
         innovation: evaluation.innovation,

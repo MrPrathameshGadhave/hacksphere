@@ -103,6 +103,11 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
   );
 }
 
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 function getInitialFormValues(
   announcement?: AnnouncementItem | null
 ): AnnouncementFormValues {
@@ -226,6 +231,27 @@ export default function AdminAnnouncementsPage() {
       result: allAnnouncements.filter((item) => item.category === "result").length,
     };
   }, [allAnnouncements]);
+
+  const criticalCount = stats.important + stats.deadline;
+  const pinnedRate = calculatePercentage(stats.pinned, stats.total);
+  const criticalRate = calculatePercentage(criticalCount, stats.total);
+  const recentCount = allAnnouncements.filter((item) => {
+    const createdAt = new Date(item.createdAt);
+
+    if (Number.isNaN(createdAt.getTime())) return false;
+
+    return Date.now() - createdAt.getTime() <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
+  const filteredPinnedCount = filteredAnnouncements.filter(
+    (item) => item.pinned
+  ).length;
+  const filteredCriticalCount = filteredAnnouncements.filter(
+    (item) => item.category === "important" || item.category === "deadline"
+  ).length;
+  const hasActiveFilters =
+    searchTerm.trim().length > 0 ||
+    categoryFilter !== "All" ||
+    pinFilter !== "All";
 
   const openCreateModal = () => {
     setSelectedAnnouncement(null);
@@ -641,42 +667,127 @@ export default function AdminAnnouncementsPage() {
   return (
     <>
       <section className="space-y-6">
-        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+        <div className="overflow-hidden rounded-[32px] border border-[#ead7de] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f5_42%,#fff7fa_100%)] p-8 shadow-[0_20px_55px_rgba(160,28,51,0.08)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-                Announcement Management • Admin Control
+              <div className="inline-flex items-center rounded-full border border-[#ead7de] bg-white/90 px-4 py-2 text-sm font-semibold text-[#9d5f6d] shadow-sm">
+                Communication Control / Admin Workspace
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                Create, pin, and manage event-wide announcements.
+              <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight text-[#2e1f25] sm:text-4xl">
+                Keep event communication clear, timely, and visible from one announcement desk.
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                Control important notices, deadline alerts, general updates, and
-                result communications shared across HackSphere.
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+                Create priority notices, pin key updates to the top, and keep
+                deadline, result, and general communication easy to manage for the
+                full event.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Total Notices
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.total}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Pinned
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.pinned}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Critical
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : criticalCount}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Filtered Result</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {loading ? "..." : filteredAnnouncements.length}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Announcement records visible after your current filters.
-                </p>
+            <div className="grid gap-4">
+              <div className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[#A01C33]">
+                      Communication Health
+                    </p>
+                    <h3 className="mt-1 text-2xl font-bold text-[#2e1f25]">
+                      {loading ? "..." : `${pinnedRate}% pinned`}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      {loading
+                        ? "Checking announcement coverage..."
+                        : `${criticalCount} high-priority notices and ${recentCount} updates created in the last 7 days.`}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                    <Megaphone className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Pinned visibility</span>
+                      <span>{loading ? "..." : `${pinnedRate}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f2e9ec]">
+                      <div
+                        className="h-2 rounded-full bg-[#A01C33] transition-all"
+                        style={{ width: `${pinnedRate}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Critical notice mix</span>
+                      <span>{loading ? "..." : `${criticalRate}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f6efe4]">
+                      <div
+                        className="h-2 rounded-full bg-amber-500 transition-all"
+                        style={{ width: `${criticalRate}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Admin Scope</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  Create + Pin
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Publish high-priority communication and keep key updates visible.
-                </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Current View
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : filteredAnnouncements.length}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Records visible after your active search and filter settings.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Recent Activity
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : recentCount}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Announcements created within the last 7 days.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -692,10 +803,13 @@ export default function AdminAnnouncementsPage() {
           <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total</p>
+                <p className="text-sm font-medium text-gray-500">Total Notices</p>
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.total}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  All announcement records currently managed by admins.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Bell className="h-5 w-5" />
@@ -710,6 +824,9 @@ export default function AdminAnnouncementsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.pinned}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Notices held at the top to keep critical communication visible.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <Pin className="h-5 w-5" />
@@ -724,6 +841,9 @@ export default function AdminAnnouncementsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.important}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  High-priority updates that need extra visibility for teams.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Sparkles className="h-5 w-5" />
@@ -738,6 +858,9 @@ export default function AdminAnnouncementsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.deadline}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Time-sensitive reminders for registrations, submissions, or reviews.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <CalendarDays className="h-5 w-5" />
@@ -752,6 +875,9 @@ export default function AdminAnnouncementsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.result}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Result or winner-related communication already prepared or sent.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
                 <CheckCircle2 className="h-5 w-5" />
@@ -760,13 +886,17 @@ export default function AdminAnnouncementsPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-sm font-medium text-[#A01C33]">Announcement Records</p>
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
                 Search and manage notices
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Filter by message type, pinned visibility, or search terms to
+                quickly find the notices that still need review or updating.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -817,15 +947,42 @@ export default function AdminAnnouncementsPage() {
                   <option value="Normal">Normal</option>
                 </select>
               </div>
+
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCategoryFilter("All");
+                    setPinFilter("All");
+                  }}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Clear Filters
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3 text-sm font-medium text-gray-600">
-            Showing{" "}
-            <span className="font-bold text-[#3B3C3E]">
-              {loading ? "..." : filteredAnnouncements.length}
-            </span>{" "}
-            announcement records
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+              Showing{" "}
+              <span className="font-bold text-[#2e1f25]">
+                {loading ? "..." : filteredAnnouncements.length}
+              </span>{" "}
+              announcement records in the current view.{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredPinnedCount}
+              </span>{" "}
+              are pinned for priority visibility.
+            </div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4 text-sm text-gray-500">
+              <span className="font-semibold text-[#3B3C3E]">
+                {loading ? "..." : filteredCriticalCount}
+              </span>{" "}
+              notices in view are marked important or deadline-sensitive.
+            </div>
           </div>
 
           <div className="mt-6 hidden xl:block">
@@ -854,7 +1011,7 @@ export default function AdminAnnouncementsPage() {
               className="w-full max-w-3xl overflow-hidden rounded-[30px] border border-white/50 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="border-b border-gray-200 px-6 py-5 sm:px-7">
+              <div className="border-b border-gray-200 bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-6 py-5 sm:px-7">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#A01C33]">
@@ -1090,7 +1247,7 @@ export default function AdminAnnouncementsPage() {
             className="w-full max-w-lg rounded-[28px] border border-white/50 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-gray-200 px-6 py-5">
+            <div className="border-b border-gray-200 bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-6 py-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium text-[#A01C33]">

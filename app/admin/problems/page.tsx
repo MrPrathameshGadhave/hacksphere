@@ -95,6 +95,11 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
   );
 }
 
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 function parseTextList(value: string) {
   return value
     .split(/\n|,/)
@@ -219,6 +224,23 @@ export default function AdminProblemsPage() {
       linked: allProblems.filter((item) => item.teamsInterested > 0).length,
     };
   }, [allProblems]);
+
+  const publishRate = calculatePercentage(stats.published, stats.total);
+  const liveRate = calculatePercentage(stats.active, stats.total);
+  const linkedRate = calculatePercentage(stats.linked, stats.total);
+  const filteredPublishedCount = filteredProblems.filter(
+    (item) => item.status === "Published"
+  ).length;
+  const filteredDraftCount = filteredProblems.filter(
+    (item) => item.status === "Draft"
+  ).length;
+  const filteredArchivedCount = filteredProblems.filter(
+    (item) => item.status === "Archived"
+  ).length;
+  const hasActiveFilters =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== "All" ||
+    difficultyFilter !== "All";
 
   const openCreateModal = () => {
     setSelectedProblem(null);
@@ -685,42 +707,140 @@ export default function AdminProblemsPage() {
   return (
     <>
       <section className="space-y-6">
-        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+        <div className="overflow-hidden rounded-[32px] border border-[#ead7de] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f5_42%,#fff7fa_100%)] p-8 shadow-[0_20px_55px_rgba(160,28,51,0.08)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-                Problem Management • Admin Control
+              <div className="inline-flex items-center rounded-full border border-[#ead7de] bg-white/90 px-4 py-2 text-sm font-semibold text-[#9d5f6d] shadow-sm">
+                Problem Library / Admin Control
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                Manage challenge statements, publishing status, and problem visibility.
+              <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight text-[#2e1f25] sm:text-4xl">
+                Operate the full challenge library from one clean control surface.
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                Create new challenges, refine existing statements, and control which
-                problem statements are live for participants.
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+                Publish the right statements, keep draft work visible to the team,
+                and quickly see which challenges are live, archived, or already
+                pulling team interest.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Published
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.published}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Live
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.active}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#ead7de] bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9d5f6d]">
+                    Linked Teams
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.linked}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Filtered Result</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {loading ? "..." : filteredProblems.length}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Problem records visible after your current filters.
-                </p>
+            <div className="grid gap-4">
+              <div className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[#A01C33]">
+                      Library Health
+                    </p>
+                    <h3 className="mt-1 text-2xl font-bold text-[#2e1f25]">
+                      {loading ? "..." : `${publishRate}% published`}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      {loading
+                        ? "Checking challenge readiness..."
+                        : `${stats.active} live statements and ${stats.linked} already drawing team demand.`}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Publish coverage</span>
+                      <span>{loading ? "..." : `${publishRate}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f2e9ec]">
+                      <div
+                        className="h-2 rounded-full bg-[#A01C33] transition-all"
+                        style={{ width: `${publishRate}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Live visibility</span>
+                      <span>{loading ? "..." : `${liveRate}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#eef3ed]">
+                      <div
+                        className="h-2 rounded-full bg-green-600 transition-all"
+                        style={{ width: `${liveRate}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <span>Team pull</span>
+                      <span>{loading ? "..." : `${linkedRate}%`}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f6efe4]">
+                      <div
+                        className="h-2 rounded-full bg-amber-500 transition-all"
+                        style={{ width: `${linkedRate}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Admin Scope</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  Create + Publish
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Control challenge quality, visibility, and lifecycle centrally.
-                </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Current View
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : filteredProblems.length}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Records visible after your active search and filter settings.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#A01C33]">
+                    Draft Queue
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#2e1f25]">
+                    {loading ? "..." : stats.draft}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Problem statements still waiting for refinement or publication.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -736,10 +856,13 @@ export default function AdminProblemsPage() {
           <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total</p>
+                <p className="text-sm font-medium text-gray-500">Total Problems</p>
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.total}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  All challenge records currently managed from the platform.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Layers3 className="h-5 w-5" />
@@ -754,6 +877,9 @@ export default function AdminProblemsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.published}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Statements available for participants to discover and choose.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
                 <CheckCircle2 className="h-5 w-5" />
@@ -764,10 +890,13 @@ export default function AdminProblemsPage() {
           <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Draft</p>
+                <p className="text-sm font-medium text-gray-500">Draft Queue</p>
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.draft}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Challenge ideas still being refined before they go live.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-700">
                 <FileText className="h-5 w-5" />
@@ -782,6 +911,9 @@ export default function AdminProblemsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.archived}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Retired statements preserved for history and audit reference.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
                 <Archive className="h-5 w-5" />
@@ -792,10 +924,13 @@ export default function AdminProblemsPage() {
           <div className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Live</p>
+                <p className="text-sm font-medium text-gray-500">Live Visibility</p>
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.active}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Problems currently active and visible inside the event workflow.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Sparkles className="h-5 w-5" />
@@ -810,6 +945,9 @@ export default function AdminProblemsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.linked}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Statements already attached to at least one participating team.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <Layers3 className="h-5 w-5" />
@@ -818,13 +956,18 @@ export default function AdminProblemsPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-sm font-medium text-[#A01C33]">Problem Records</p>
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
                 Search and manage problem statements
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Keep the library clean, publish only ready statements, and use the
+                filters below to quickly spot drafts, archived records, or
+                high-interest challenges.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -867,6 +1010,20 @@ export default function AdminProblemsPage() {
                 </select>
               </div>
 
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("All");
+                    setDifficultyFilter("All");
+                  }}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Clear Filters
+                </button>
+              ) : null}
+
               <button
                 type="button"
                 onClick={openCreateModal}
@@ -878,12 +1035,33 @@ export default function AdminProblemsPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3 text-sm font-medium text-gray-600">
-            Showing{" "}
-            <span className="font-bold text-[#3B3C3E]">
-              {loading ? "..." : filteredProblems.length}
-            </span>{" "}
-            problem records
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+              Showing{" "}
+              <span className="font-bold text-[#2e1f25]">
+                {loading ? "..." : filteredProblems.length}
+              </span>{" "}
+              problem records in the current view.{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredPublishedCount}
+              </span>{" "}
+              are published and{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredDraftCount}
+              </span>{" "}
+              remain in draft.
+            </div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4 text-sm text-gray-500">
+              <span className="font-semibold text-[#3B3C3E]">
+                {loading ? "..." : filteredArchivedCount}
+              </span>{" "}
+              archived records are in view.{" "}
+              <span className="font-semibold text-[#3B3C3E]">
+                {loading ? "..." : stats.linked}
+              </span>{" "}
+              total statements are already linked to teams.
+            </div>
           </div>
 
           <div className="mt-6 hidden xl:block">

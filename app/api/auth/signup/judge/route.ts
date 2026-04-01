@@ -55,13 +55,15 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       college,
       role: "judge",
-      isApproved: true,
+      isApproved: false,
+      judgeStatus: "pending",
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Judge account created successfully",
+        message:
+          "Judge account created successfully. Wait for admin approval before signing in.",
         user: {
           id: newUser._id,
           name: newUser.name,

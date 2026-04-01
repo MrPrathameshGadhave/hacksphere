@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   Bell,
   ChevronRight,
@@ -192,10 +192,14 @@ export default function ParticipantSidebar({
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  useEffect(() => {
+  const closeSidebarOnNavigate = useEffectEvent(() => {
     if (mobileOpen && onClose) {
       onClose();
     }
+  });
+
+  useEffect(() => {
+    closeSidebarOnNavigate();
   }, [pathname]);
 
   const handleLogout = async () => {

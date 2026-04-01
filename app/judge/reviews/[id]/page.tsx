@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  getJudgeReviewStatusDescription,
+  getJudgeReviewStatusLabel,
+  type JudgeReviewStatus,
+} from "@/lib/judge-review-status";
+import {
   ArrowLeft,
   BookOpenText,
   CalendarDays,
@@ -16,7 +21,6 @@ import {
   FileVideo,
   FolderGit2,
   FolderKanban,
-  Github,
   Globe,
   Image as ImageIcon,
   Lightbulb,
@@ -33,7 +37,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import ConfirmActionModal from "@/components/modals/ConfirmActionModal";
 
 type ScoreKey =
   | "innovation"
@@ -43,8 +46,6 @@ type ScoreKey =
   | "presentation";
 
 type ScoreState = Record<ScoreKey, number>;
-
-type ReviewStatus = "pending" | "in-progress" | "reviewed";
 
 type ReviewDetail = {
   id: string;
@@ -76,7 +77,7 @@ type ReviewDetail = {
   screenshots: string[];
   submissionStatus: "draft" | "submitted" | "locked";
   submittedAt: string | null;
-  reviewStatus: ReviewStatus;
+  reviewStatus: JudgeReviewStatus;
   evaluation: {
     innovation: number;
     technicalComplexity: number;
@@ -93,13 +94,8 @@ type ReviewDetail = {
 
 type PersistReviewResponse = {
   message?: string;
-  requiresConfirmation?: boolean;
   evaluation?: ReviewDetail["evaluation"];
-  reviewStatus?: ReviewStatus;
-};
-
-type PersistReviewError = Error & {
-  requiresConfirmation?: boolean;
+  reviewStatus?: JudgeReviewStatus;
 };
 
 const scoreMeta: {
@@ -134,7 +130,7 @@ const scoreMeta: {
   },
 ];
 
-function getEvaluationLabel(status: "draft" | "submitted") {
+function getDraftStatusLabel(status: "draft" | "submitted") {
   return status === "submitted" ? "Submitted" : "Draft";
 }
 
@@ -155,6 +151,22 @@ function formatDate(value: string | null) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  }).format(date);
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Not available";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -179,8 +191,11 @@ export default function JudgeReviewDetailsPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [error, setError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
-  const [showSubmittedUpdateConfirm, setShowSubmittedUpdateConfirm] =
-    useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<
+    "idle" | "dirty" | "saving" | "saved" | "error"
+  >("idle");
+  const [autosaveError, setAutosaveError] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!reviewId) return;
@@ -219,6 +234,8 @@ export default function JudgeReviewDetailsPage() {
         });
         setFeedback(item.evaluation?.feedback ?? "");
         setEvaluationState(item.evaluation?.status ?? "draft");
+        setLastSavedAt(item.evaluation?.updatedAt ?? null);
+        setAutosaveStatus(item.evaluation?.updatedAt ? "saved" : "idle");
       } catch (err) {
         if (!mounted) return;
 
@@ -256,20 +273,122 @@ export default function JudgeReviewDetailsPage() {
     [scores]
   );
 
-  const hasSubmittedReviewChanges = useMemo(() => {
-    if (!project?.evaluation || evaluationState !== "submitted") {
-      return false;
+  const hasUnsavedDraftChanges = useMemo(() => {
+    const evaluation = project?.evaluation;
+    return (
+      (evaluation?.innovation ?? 0) !== scores.innovation ||
+      (evaluation?.technicalComplexity ?? 0) !== scores.technicalComplexity ||
+      (evaluation?.uiUx ?? 0) !== scores.uiUx ||
+      (evaluation?.impact ?? 0) !== scores.impact ||
+      (evaluation?.presentation ?? 0) !== scores.presentation ||
+      (evaluation?.feedback || "").trim() !== feedback.trim()
+    );
+  }, [project, scores, feedback]);
+
+  const isReviewLocked = evaluationState === "submitted";
+
+  const saveStatusContent = useMemo(() => {
+    if (isReviewLocked) {
+      return {
+        title: "Submitted review locked",
+        description:
+          "This review has been submitted. Scores and feedback are now read-only.",
+        classes: "border-amber-200 bg-amber-50 text-amber-800",
+      };
     }
 
-    return (
-      project.evaluation.innovation !== scores.innovation ||
-      project.evaluation.technicalComplexity !== scores.technicalComplexity ||
-      project.evaluation.uiUx !== scores.uiUx ||
-      project.evaluation.impact !== scores.impact ||
-      project.evaluation.presentation !== scores.presentation ||
-      (project.evaluation.feedback || "").trim() !== feedback.trim()
-    );
-  }, [project, evaluationState, scores, feedback]);
+    if (autosaveStatus === "saving") {
+      return {
+        title: "Saving draft...",
+        description: "Your latest scoring changes are being saved automatically.",
+        classes: "border-blue-200 bg-blue-50 text-blue-800",
+      };
+    }
+
+    if (autosaveStatus === "error") {
+      return {
+        title: "Auto-save needs attention",
+        description: autosaveError || "The latest draft could not be saved.",
+        classes: "border-red-200 bg-red-50 text-red-800",
+      };
+    }
+
+    if (autosaveStatus === "dirty") {
+      return {
+        title: "Unsaved changes",
+        description:
+          "Draft auto-save runs after 10 seconds of inactivity while this review is still editable.",
+        classes: "border-amber-200 bg-amber-50 text-amber-800",
+      };
+    }
+
+    if (lastSavedAt) {
+      return {
+        title: "Draft saved",
+        description: `Last saved on ${formatDateTime(lastSavedAt)}.`,
+        classes: "border-green-200 bg-green-50 text-green-800",
+      };
+    }
+
+    return {
+      title: "Auto-save ready",
+      description:
+        "Start scoring and the review draft will save automatically every 10 seconds while you work.",
+      classes: "border-gray-200 bg-[#f8f8f9] text-[#3B3C3E]",
+    };
+  }, [autosaveError, autosaveStatus, isReviewLocked, lastSavedAt]);
+
+  useEffect(() => {
+    if (!project || isLoading || isSavingDraft || isSubmittingReview) {
+      return;
+    }
+
+    if (isReviewLocked) {
+      setAutosaveStatus(lastSavedAt ? "saved" : "idle");
+      setAutosaveError("");
+      return;
+    }
+
+    if (!hasUnsavedDraftChanges) {
+      setAutosaveStatus(lastSavedAt ? "saved" : "idle");
+      setAutosaveError("");
+      return;
+    }
+
+    setAutosaveStatus("dirty");
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setAutosaveStatus("saving");
+        setAutosaveError("");
+
+        const data = await persistReview("draft");
+        const updatedAt = data?.evaluation?.updatedAt || new Date().toISOString();
+
+        setLastSavedAt(updatedAt);
+        setAutosaveStatus("saved");
+      } catch (err) {
+        setAutosaveStatus("error");
+        setAutosaveError(
+          err instanceof Error ? err.message : "Failed to auto-save review draft."
+        );
+      }
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    feedback,
+    hasUnsavedDraftChanges,
+    isLoading,
+    isReviewLocked,
+    isSavingDraft,
+    isSubmittingReview,
+    lastSavedAt,
+    project,
+    scores,
+  ]);
 
   const setScore = (key: ScoreKey, value: number) => {
     setScores((prev) => ({
@@ -302,15 +421,7 @@ export default function JudgeReviewDetailsPage() {
       | null;
 
     if (!response.ok) {
-      const typedError = new Error(
-        data?.message || "Failed to save review."
-      ) as PersistReviewError;
-
-      if (data?.requiresConfirmation) {
-        typedError.requiresConfirmation = true;
-      }
-
-      throw typedError;
+      throw new Error(data?.message || "Failed to save review.");
     }
 
     setEvaluationState(data?.evaluation?.status || status);
@@ -328,12 +439,23 @@ export default function JudgeReviewDetailsPage() {
   };
 
   const handleSaveDraft = async () => {
+    if (isReviewLocked) {
+      setError("This review is submitted and locked.");
+      setActionMessage("");
+      return;
+    }
+
     try {
       setIsSavingDraft(true);
       setError("");
       setActionMessage("");
+      setAutosaveError("");
 
       const data = await persistReview("draft");
+      const updatedAt = data?.evaluation?.updatedAt || new Date().toISOString();
+
+      setLastSavedAt(updatedAt);
+      setAutosaveStatus("saved");
       setActionMessage(data?.message || "Review draft saved successfully.");
     } catch (err) {
       setError(
@@ -345,6 +467,12 @@ export default function JudgeReviewDetailsPage() {
   };
 
   const handleSubmitReview = async () => {
+    if (isReviewLocked) {
+      setError("This review is already submitted and cannot be edited.");
+      setActionMessage("");
+      return;
+    }
+
     const allScored = Object.values(scores).every((value) => value > 0);
 
     if (!allScored) {
@@ -359,58 +487,23 @@ export default function JudgeReviewDetailsPage() {
       return;
     }
 
-    if (evaluationState === "submitted") {
-      if (!hasSubmittedReviewChanges) {
-        setError("");
-        setActionMessage("No changes detected in the submitted review.");
-        return;
-      }
-
-      setError("");
-      setActionMessage("");
-      setShowSubmittedUpdateConfirm(true);
-      return;
-    }
-
     try {
       setIsSubmittingReview(true);
       setError("");
       setActionMessage("");
+      setAutosaveError("");
 
       const data = await persistReview("submitted");
-      setActionMessage(data?.message || "Review submitted successfully.");
+      const updatedAt = data?.evaluation?.updatedAt || new Date().toISOString();
+
+      setLastSavedAt(updatedAt);
+      setAutosaveStatus("saved");
+      setActionMessage(
+        data?.message || "Review submitted successfully. Further edits are locked."
+      );
     } catch (err) {
-      const typedError = err as PersistReviewError;
-
-      if (typedError?.requiresConfirmation) {
-        setError("");
-        setActionMessage("");
-        setShowSubmittedUpdateConfirm(true);
-        return;
-      }
-
       setError(
         err instanceof Error ? err.message : "Failed to submit review."
-      );
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
-  const handleConfirmSubmittedReviewUpdate = async () => {
-    try {
-      setIsSubmittingReview(true);
-      setError("");
-      setActionMessage("");
-
-      const data = await persistReview("submitted", true);
-      setShowSubmittedUpdateConfirm(false);
-      setActionMessage(
-        data?.message || "Submitted review updated successfully."
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to update submitted review."
       );
     } finally {
       setIsSubmittingReview(false);
@@ -495,6 +588,15 @@ export default function JudgeReviewDetailsPage() {
 
   if (!project) return null;
 
+  const workflowStageDescription =
+    project.reviewStatus === "in-progress"
+      ? autosaveStatus === "saving"
+        ? "Saving the latest draft changes automatically."
+        : lastSavedAt
+        ? `Draft last updated on ${formatDateTime(lastSavedAt)}.`
+        : getJudgeReviewStatusDescription(project.reviewStatus)
+      : getJudgeReviewStatusDescription(project.reviewStatus);
+
   return (
     <section className="space-y-6">
       <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.28)] lg:p-10">
@@ -509,7 +611,7 @@ export default function JudgeReviewDetailsPage() {
             </Link>
 
             <div className="mt-5 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-              Detailed Project Evaluation
+              Detailed Project Review
             </div>
 
             <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
@@ -525,14 +627,12 @@ export default function JudgeReviewDetailsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Review Status</p>
+              <p className="text-sm font-medium text-white/80">Workflow Stage</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {getEvaluationLabel(evaluationState)}
+                {getJudgeReviewStatusLabel(project.reviewStatus)}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                {evaluationState === "submitted"
-                  ? "This review is already submitted. Updating it will require confirmation."
-                  : "Save draft first, then submit final review."}
+                {workflowStageDescription}
               </p>
             </div>
 
@@ -705,7 +805,7 @@ export default function JudgeReviewDetailsPage() {
                   title: "GitHub Repository",
                   subtitle: "Open source code link",
                   href: project.githubLink,
-                  icon: Github,
+                  icon: FolderGit2,
                 },
                 {
                   title: "Live Demo",
@@ -826,11 +926,16 @@ export default function JudgeReviewDetailsPage() {
         <div className="space-y-6">
           <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
             <p className="text-sm font-medium text-[#A01C33]">
-              Evaluation Panel
+              Review Panel
             </p>
             <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
               Score the submission
             </h2>
+
+            <div className={`mt-6 rounded-[22px] border p-5 ${saveStatusContent.classes}`}>
+              <p className="text-sm font-semibold">{saveStatusContent.title}</p>
+              <p className="mt-2 text-sm leading-6">{saveStatusContent.description}</p>
+            </div>
 
             <div className="mt-6 space-y-5">
               {scoreMeta.map((item) => (
@@ -861,10 +966,15 @@ export default function JudgeReviewDetailsPage() {
                           key={value}
                           type="button"
                           onClick={() => setScore(item.key, value)}
+                          disabled={isReviewLocked}
                           className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold transition ${
                             active
                               ? "border-[#A01C33] bg-[#A01C33] text-white"
                               : "border-gray-200 bg-white text-gray-600 hover:border-[#A01C33] hover:text-[#A01C33]"
+                          } ${
+                            isReviewLocked
+                              ? "cursor-not-allowed opacity-60"
+                              : ""
                           }`}
                         >
                           {value}
@@ -891,9 +1001,10 @@ export default function JudgeReviewDetailsPage() {
                   <textarea
                     value={feedback}
                     onChange={(event) => setFeedback(event.target.value)}
+                    disabled={isReviewLocked}
                     rows={6}
                     placeholder="Write your review notes, suggestions, and observations here..."
-                    className="mt-4 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33]"
+                    className="mt-4 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
               </div>
@@ -913,7 +1024,7 @@ export default function JudgeReviewDetailsPage() {
               <button
                 onClick={handleSaveDraft}
                 disabled={
-                  isSavingDraft || isSubmittingReview || evaluationState === "submitted"
+                  isSavingDraft || isSubmittingReview || isReviewLocked
                 }
                 className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -927,7 +1038,7 @@ export default function JudgeReviewDetailsPage() {
 
               <button
                 onClick={handleSubmitReview}
-                disabled={isSavingDraft || isSubmittingReview}
+                disabled={isSavingDraft || isSubmittingReview || isReviewLocked}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmittingReview ? (
@@ -935,9 +1046,7 @@ export default function JudgeReviewDetailsPage() {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                {evaluationState === "submitted"
-                  ? "Update Review"
-                  : "Submit Review"}
+                Submit Review
               </button>
             </div>
           </div>
@@ -1005,8 +1114,8 @@ export default function JudgeReviewDetailsPage() {
                       Review lifecycle
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-gray-600">
-                      Submitted reviews can still be corrected, but only after
-                      explicit confirmation to avoid accidental score changes.
+                      Draft reviews auto-save while you work. Once submitted,
+                      the review is locked to preserve final judging records.
                     </p>
                   </div>
                 </div>
@@ -1019,14 +1128,12 @@ export default function JudgeReviewDetailsPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-[#3B3C3E]">
-                      Current evaluation state
+                      Draft save history
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-gray-500">
-                      {project.evaluation?.updatedAt
-                        ? `Last updated on ${formatDate(
-                            project.evaluation.updatedAt
-                          )}.`
-                        : "No previous evaluation activity recorded yet."}
+                      {lastSavedAt
+                        ? `Last draft save was recorded on ${formatDateTime(lastSavedAt)}.`
+                        : "No previous draft activity has been recorded yet."}
                     </p>
                   </div>
                 </div>
@@ -1044,19 +1151,23 @@ export default function JudgeReviewDetailsPage() {
 
             <div className="mt-6 space-y-4">
               {[
-  {
-    label: "Problem Title",
-    value: project.problemTitle || "Not available",
-  },
-  {
-    label: "Submitted On",
-    value: formatDate(project.submittedAt),
-  },
-  {
-    label: "Current Review State",
-    value: getEvaluationLabel(evaluationState),
-  },
-].map((item) => (
+                {
+                  label: "Problem Title",
+                  value: project.problemTitle || "Not available",
+                },
+                {
+                  label: "Submitted On",
+                  value: formatDate(project.submittedAt),
+                },
+                {
+                  label: "Workflow Stage",
+                  value: getJudgeReviewStatusLabel(project.reviewStatus),
+                },
+                {
+                  label: "Draft Status",
+                  value: getDraftStatusLabel(evaluationState),
+                },
+              ].map((item) => (
                 <div
                   key={item.label}
                   className="rounded-[20px] border border-gray-200 bg-[#fcfcfd] px-4 py-3"
@@ -1073,21 +1184,6 @@ export default function JudgeReviewDetailsPage() {
           </div>
         </div>
       </div>
-
-      <ConfirmActionModal
-        open={showSubmittedUpdateConfirm}
-        onClose={() => {
-          if (isSubmittingReview) return;
-          setShowSubmittedUpdateConfirm(false);
-        }}
-        onConfirm={handleConfirmSubmittedReviewUpdate}
-        title="Update Submitted Review?"
-        description="This review has already been submitted. Updating it will change the final evaluation score and feedback for this project. Do you want to continue?"
-        confirmText="Yes, Update Review"
-        cancelText="Cancel"
-        variant="warning"
-        loading={isSubmittingReview}
-      />
     </section>
   );
 }

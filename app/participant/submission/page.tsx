@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 
 import ConfirmActionModal from "@/components/modals/ConfirmActionModal";
+import { ImageUpload } from "@/components/forms/ImageUpload";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 import {
   formatSubmissionDeadline,
   isSubmissionDeadlinePassed,
@@ -45,6 +47,7 @@ type SubmissionForm = {
   pptLink: string;
   videoLink: string;
   techStack: string;
+  images: string[];
 };
 
 type BasicUser = {
@@ -175,6 +178,7 @@ function toFormValues(submission: SubmissionData | null): SubmissionForm {
     pptLink: submission?.pptLink || "",
     videoLink: submission?.videoLink || "",
     techStack: submission?.techStack?.join(", ") || "",
+    images: submission?.images || [],
   };
 }
 
@@ -198,6 +202,7 @@ export default function ParticipantSubmissionPage() {
     pptLink: "",
     videoLink: "",
     techStack: "",
+    images: [],
   });
 
   const [finalSubmitOpen, setFinalSubmitOpen] = useState(false);
@@ -329,6 +334,44 @@ export default function ParticipantSubmissionPage() {
     : !allRequiredComplete
     ? "Complete all required fields first. You can still save progress as a draft anytime."
     : "You can save progress as draft and submit finally when ready.";
+  const completionPercent = Math.round((completedCount / checklist.length) * 100);
+  const statusDescription = loading
+    ? "Checking current submission..."
+    : submission?.status === "submitted"
+    ? "Your project is submitted successfully."
+    : submission?.status === "locked"
+    ? "Your submitted project is now locked."
+    : "Your final project has not been submitted yet.";
+  const nextActionTitle = !team
+    ? "Create your team"
+    : team.status === "disqualified"
+    ? "Submission access restricted"
+    : !team.problemStatement
+    ? "Select your challenge"
+    : !isLeader
+    ? "Coordinate with your leader"
+    : isLocked
+    ? "Submission is locked"
+    : !allRequiredComplete
+    ? "Complete the required fields"
+    : submission?.status === "submitted"
+    ? "Review and refine final details"
+    : "Finalize your project delivery";
+  const nextActionDescription = !team
+    ? "Open your team workspace first before preparing the final project package."
+    : team.status === "disqualified"
+    ? "This team cannot edit or submit a project right now."
+    : !team.problemStatement
+    ? "Lock a problem statement first so the submission is tied to the correct challenge."
+    : !isLeader
+    ? "Only the team leader can edit and submit the final project package."
+    : isLocked
+    ? deadlineText
+      ? `Editing is locked because the deadline passed on ${deadlineText}.`
+      : "Editing is locked because the submission deadline has passed."
+    : !allRequiredComplete
+    ? "Finish the essential title, description, repository, demo, and tech stack details before final submit."
+    : "Everything essential is in place. Save a last draft if needed, then submit with confidence.";
 
   const handleSaveDraft = async () => {
     if (!canEdit) return;
@@ -412,39 +455,56 @@ export default function ParticipantSubmissionPage() {
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8 pb-4">
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div className="rounded-[24px] border border-red-200 bg-[linear-gradient(135deg,#fff7f7_0%,#fff0f0_100%)] px-5 py-4 text-sm text-red-700 shadow-[0_12px_30px_rgba(239,68,68,0.08)]">
           {error}
         </div>
       ) : null}
 
       {isLocked ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+        <div className="rounded-[24px] border border-amber-200 bg-[linear-gradient(135deg,#fff9ec_0%,#fff3d9_100%)] px-5 py-4 text-sm text-amber-800 shadow-[0_12px_30px_rgba(245,158,11,0.08)]">
           Submission editing is locked. {deadlineText ? `Deadline: ${deadlineText}.` : ""}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.24)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+      {!isLocked && !loading ? (
+        <div className="rounded-[26px] border border-[#ece7ea] bg-white/92 px-5 py-4 shadow-[0_16px_36px_rgba(45,32,39,0.08)]">
+          <DeadlineCountdown />
+        </div>
+      ) : null}
+
+      <div className="relative overflow-hidden rounded-[34px] border border-[#ead9df] bg-[linear-gradient(135deg,#fffdf8_0%,#fff4f0_38%,#f6f9fd_100%)] p-6 shadow-[0_28px_80px_rgba(100,48,63,0.12)] sm:p-8 lg:p-10">
+        <div className="absolute inset-y-0 right-[-12%] w-[24rem] rounded-full bg-[#f8d8df]/60 blur-3xl" />
+        <div className="absolute left-[-6%] top-[-18%] h-48 w-48 rounded-full bg-[#fff6cf]/70 blur-3xl" />
+        <div className="relative grid gap-8 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
           <div>
-            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-2 text-[0px] font-semibold uppercase tracking-[0.24em] text-[#8f4250]">
+              <span className="rounded-full border border-[#e7ced5] bg-white/80 px-3 py-1.5 text-[11px] shadow-sm">
+                Project Submission
+              </span>
+              <span className="rounded-full border border-[#e7ced5] bg-white/80 px-3 py-1.5 text-[11px] shadow-sm">
+                Final Delivery
+              </span>
+              <span className="rounded-full border border-[#ecdcb3] bg-[#fff8d8] px-3 py-1.5 text-[11px] text-[#8a6822] shadow-sm">
+                Judge Review Ready
+              </span>
               Project Submission • Final Delivery Workspace
             </div>
 
             {loading ? (
               <div className="mt-5">
-                <SkeletonBlock className="h-10 w-80 bg-white/20" />
-                <SkeletonBlock className="mt-4 h-4 w-full max-w-2xl bg-white/15" />
-                <SkeletonBlock className="mt-2 h-4 w-full max-w-xl bg-white/15" />
+                <SkeletonBlock className="h-10 w-80 bg-[#ead9df]" />
+                <SkeletonBlock className="mt-4 h-4 w-full max-w-2xl bg-[#efe6e9]" />
+                <SkeletonBlock className="mt-2 h-4 w-full max-w-xl bg-[#efe6e9]" />
               </div>
             ) : (
               <>
-                <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                  Submit your project with clarity, confidence, and complete details.
+                <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight text-[#261b1f] sm:text-4xl lg:text-[2.9rem]">
+                  Deliver your project with clarity, confidence, and judge-ready detail.
                 </h1>
 
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5f5960] sm:text-base">
                   Add your project title, description, repository, demo links, tech
                   stack, and supporting resources so judges can review your work
                   properly and fairly.
@@ -456,7 +516,7 @@ export default function ParticipantSubmissionPage() {
               <button
                 onClick={handleSaveDraft}
                 disabled={!canEdit || savingDraft}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#A01C33] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(160,28,51,0.22)] transition hover:-translate-y-0.5 hover:bg-[#8d1930] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingDraft ? "Saving..." : "Save Draft"}
                 <Save className="h-4 w-4" />
@@ -464,7 +524,7 @@ export default function ParticipantSubmissionPage() {
 
               <Link
                 href={selectedProblemHref}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#e3d3d9] bg-white/80 px-5 py-3 text-sm font-semibold text-[#402e34] shadow-sm transition hover:-translate-y-0.5 hover:border-[#d6b8c0] hover:bg-white"
               >
                 View Selected Problem
                 <ArrowRight className="h-4 w-4" />
@@ -472,31 +532,86 @@ export default function ParticipantSubmissionPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Submission Status</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {loading ? "Loading..." : submissionStatusLabel}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                {loading
-                  ? "Checking current submission..."
-                  : submission?.status === "submitted"
-                  ? "Your project is submitted successfully."
-                  : submission?.status === "locked"
-                  ? "Your submitted project is now locked."
-                  : "Your final project has not been submitted yet."}
-              </p>
+          <div className="grid gap-4">
+            <div className="rounded-[28px] border border-white/75 bg-white/82 p-5 shadow-[0_16px_40px_rgba(61,35,42,0.08)] backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-[#8f4250]">Delivery status</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#251b20]">
+                    {loading ? "Loading..." : submissionStatusLabel}
+                  </h3>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f7eef1] text-[#A01C33]">
+                  <Send className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#f3e8eb]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,#A01C33_0%,#c76a5f_100%)] transition-all duration-500"
+                  style={{ width: `${completionPercent}%` }}
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium text-[#4c3940]">
+                  {completionPercent}% submission completeness
+                </span>
+                <span className="rounded-full bg-[#f7eef1] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8f4250]">
+                  {isLeader ? "Editable" : "Read Only"}
+                </span>
+              </div>
+
+              <div className="mt-5 rounded-[24px] border border-[#efe2e6] bg-[#fcf8f9] p-4">
+                <p className="text-sm font-semibold text-[#251b20]">
+                  {nextActionTitle}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-[#655d62]">
+                  {nextActionDescription}
+                </p>
+              </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Completion Progress</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {completedCount} / {checklist.length}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                Complete the key requirements before final submission.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[22px] border border-white/70 bg-white/76 p-4 shadow-sm backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8f4250]">
+                  Completion
+                </p>
+                <p className="mt-2 text-lg font-semibold text-[#241a1f]">
+                  {completedCount} / {checklist.length}
+                </p>
+                <p className="mt-1 text-sm text-[#625a60]">
+                  Required submission items currently completed.
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-white/70 bg-white/76 p-4 shadow-sm backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8f4250]">
+                  Selected problem
+                </p>
+                <p className="mt-2 text-lg font-semibold text-[#241a1f]">
+                  {loading ? "Loading..." : team?.problemStatement ? "Linked" : "Pending"}
+                </p>
+                <p className="mt-1 text-sm text-[#625a60]">
+                  {loading
+                    ? "Checking challenge..."
+                    : team?.problemStatement?.title || "Choose a problem before final submission."}
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-white/70 bg-white/76 p-4 shadow-sm backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8f4250]">
+                  Control
+                </p>
+                <p className="mt-2 text-lg font-semibold text-[#241a1f]">
+                  {isLeader ? "Leader Access" : "Member View"}
+                </p>
+                <p className="mt-1 text-sm text-[#625a60]">
+                  {isLeader
+                    ? "You own draft saves and final submission."
+                    : "Only the team leader can deliver the final project."}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -504,21 +619,21 @@ export default function ParticipantSubmissionPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
         <div className="space-y-6">
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-[#A01C33]">Project Information</p>
-                <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                <p className="text-sm font-medium text-[#8f4250]">Project Information</p>
+                <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
                   Core submission details
                 </h2>
               </div>
 
-              <div className="hidden rounded-2xl bg-[#A01C33]/10 px-4 py-2 text-sm font-semibold text-[#A01C33] sm:block">
+              <div className="hidden rounded-2xl bg-[#f7eef1] px-4 py-2 text-sm font-semibold text-[#A01C33] sm:block">
                 {isLeader ? "Team Leader Access" : "Read Only"}
               </div>
             </div>
 
-            <div className="mt-4 rounded-[20px] border border-dashed border-[#A01C33]/20 bg-[#A01C33]/[0.03] p-4 text-sm text-[#3B3C3E]">
+            <div className="mt-4 rounded-[22px] border border-dashed border-[#ecd7de] bg-[#fcf4f6] p-4 text-sm text-[#3d3136]">
               {helperMessage}
             </div>
 
@@ -540,7 +655,7 @@ export default function ParticipantSubmissionPage() {
                     value={formData.projectTitle}
                     onChange={handleChange}
                     disabled={!canEdit}
-                    className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                   />
                 </div>
               </div>
@@ -560,7 +675,7 @@ export default function ParticipantSubmissionPage() {
                   value={formData.description}
                   onChange={handleChange}
                   disabled={!canEdit}
-                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  className="w-full rounded-2xl border border-[#e6dde1] bg-white px-4 py-3 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                 />
               </div>
 
@@ -581,16 +696,16 @@ export default function ParticipantSubmissionPage() {
                     value={formData.techStack}
                     onChange={handleChange}
                     disabled={!canEdit}
-                    className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-            <p className="text-sm font-medium text-[#A01C33]">Project Links</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
+            <p className="text-sm font-medium text-[#8f4250]">Project Links</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
               Add important resources
             </h2>
 
@@ -612,7 +727,7 @@ export default function ParticipantSubmissionPage() {
                     value={formData.githubLink}
                     onChange={handleChange}
                     disabled={!canEdit}
-                    className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                    className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                   />
                 </div>
               </div>
@@ -634,7 +749,7 @@ export default function ParticipantSubmissionPage() {
                     value={formData.demoLink}
                     onChange={handleChange}
                     disabled={!canEdit}
-                    className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                    className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                   />
                 </div>
               </div>
@@ -657,7 +772,7 @@ export default function ParticipantSubmissionPage() {
                       value={formData.pptLink}
                       onChange={handleChange}
                       disabled={!canEdit}
-                      className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                      className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                     />
                   </div>
                 </div>
@@ -679,7 +794,7 @@ export default function ParticipantSubmissionPage() {
                       value={formData.videoLink}
                       onChange={handleChange}
                       disabled={!canEdit}
-                      className="h-[54px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-gray-50"
+                      className="h-[54px] w-full rounded-2xl border border-[#e6dde1] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 disabled:cursor-not-allowed disabled:bg-[#f8f5f6]"
                     />
                   </div>
                 </div>
@@ -687,51 +802,48 @@ export default function ParticipantSubmissionPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-            <p className="text-sm font-medium text-[#A01C33]">Attachments</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
+            <p className="text-sm font-medium text-[#8f4250]">Attachments</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
               Screenshots and supporting media
             </h2>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
-              <div className="rounded-[24px] border-2 border-dashed border-gray-300 bg-[#fafafa] p-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                  <ImagePlus className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 text-lg font-bold text-[#3B3C3E]">
-                  Upload project screenshots
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-gray-500">
-                  Cloudinary image upload can be connected in the next step.
-                </p>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-4 py-2.5 text-sm font-semibold text-white opacity-60"
-                >
-                  <ImagePlus className="h-4 w-4" />
-                  Upload Images
-                </button>
-              </div>
+            <div className="mt-6">
+              <ImageUpload
+                onImagesChange={(images) =>
+                  setFormData((prev) => ({ ...prev, images }))
+                }
+                currentImages={formData.images}
+                maxImages={5}
+                maxSizePerImage={5}
+                disabled={!canEdit}
+              />
+            </div>
 
-              <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-6">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                  <Link2 className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 text-lg font-bold text-[#3B3C3E]">
-                  Resource link notes
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-gray-500">
-                  Keep all links accessible and public for the judges during the
-                  review process.
-                </p>
-
-                <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  <li>• GitHub repo should be accessible</li>
-                  <li>• Demo link should be working</li>
-                  <li>• PPT and video links should not require permission requests</li>
-                </ul>
+            <div className="mt-8 rounded-[26px] border border-[#ece7ea] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f7_100%)] p-6">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#A01C33] shadow-sm">
+                <Link2 className="h-6 w-6" />
               </div>
+              <h3 className="mt-4 text-lg font-bold text-[#261b1f]">
+                Resource link notes
+              </h3>
+              <p className="mt-2 text-sm leading-7 text-[#625a60]">
+                Keep all links accessible and public for the judges during the
+                review process.
+              </p>
+
+              <ul className="hidden mt-4 space-y-2 text-sm text-[#625a60]">
+                <li>• GitHub repo should be accessible</li>
+                <li>• Demo link should be working</li>
+                <li>• PPT and video links should not require permission requests</li>
+                <li>• Screenshots help judges understand your UI/UX design</li>
+              </ul>
+              <ul className="mt-4 space-y-2 text-sm text-[#625a60]">
+                <li>- GitHub repo should be accessible</li>
+                <li>- Demo link should be working</li>
+                <li>- PPT and video links should not require permission requests</li>
+                <li>- Screenshots help judges understand your UI/UX design</li>
+              </ul>
             </div>
           </div>
 
@@ -739,7 +851,7 @@ export default function ParticipantSubmissionPage() {
             <button
               onClick={handleSaveDraft}
               disabled={!canEdit || savingDraft}
-              className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#e2d8dd] bg-white px-5 py-3 text-sm font-semibold text-[#352b30] transition hover:-translate-y-0.5 hover:border-[#d6b8c0] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
               {savingDraft ? "Saving Draft..." : "Save as Draft"}
@@ -748,7 +860,7 @@ export default function ParticipantSubmissionPage() {
             <button
               onClick={() => setFinalSubmitOpen(true)}
               disabled={!canFinalSubmit || submittingFinal}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(160,28,51,0.18)] transition hover:-translate-y-0.5 hover:bg-[#8d1930] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Send className="h-4 w-4" />
               {submission?.status === "submitted"
@@ -759,9 +871,9 @@ export default function ParticipantSubmissionPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-            <p className="text-sm font-medium text-[#A01C33]">Submission Checklist</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
+            <p className="text-sm font-medium text-[#8f4250]">Submission Checklist</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
               Complete before final submit
             </h2>
 
@@ -771,15 +883,15 @@ export default function ParticipantSubmissionPage() {
                   key={item.label}
                   className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
                     item.done
-                      ? "border-green-200 bg-green-50"
-                      : "border-gray-200 bg-[#fcfcfd]"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-[#ece7ea] bg-[linear-gradient(135deg,#ffffff_0%,#fff9fb_100%)]"
                   }`}
                 >
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-xl ${
                       item.done
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-400"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-[#f7eef1] text-[#b38a95]"
                     }`}
                   >
                     <CheckCircle2 className="h-5 w-5" />
@@ -788,7 +900,7 @@ export default function ParticipantSubmissionPage() {
                   <div>
                     <p
                       className={`text-sm font-semibold ${
-                        item.done ? "text-green-700" : "text-[#3B3C3E]"
+                        item.done ? "text-emerald-700" : "text-[#261b1f]"
                       }`}
                     >
                       {item.label}
@@ -799,22 +911,22 @@ export default function ParticipantSubmissionPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-            <p className="text-sm font-medium text-[#A01C33]">Selected Problem</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
+            <p className="text-sm font-medium text-[#8f4250]">Selected Problem</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
               Challenge reference
             </h2>
 
-            <div className="mt-6 rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+            <div className="mt-6 rounded-[24px] border border-[#ece7ea] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f7_100%)] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Problem Status</p>
-                  <h3 className="mt-2 text-lg font-bold text-[#3B3C3E]">
+                  <p className="text-sm font-medium text-[#6d5960]">Problem Status</p>
+                  <h3 className="mt-2 text-lg font-bold text-[#261b1f]">
                     {loading
                       ? "Loading..."
                       : team?.problemStatement?.title || "Not Selected"}
                   </h3>
-                  <p className="mt-2 text-sm leading-7 text-gray-500">
+                  <p className="mt-2 text-sm leading-7 text-[#625a60]">
                     {loading
                       ? "Checking selected problem..."
                       : team?.problemStatement
@@ -823,7 +935,7 @@ export default function ParticipantSubmissionPage() {
                   </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#A01C33] shadow-sm">
                   <Lightbulb className="h-5 w-5" />
                 </div>
               </div>
@@ -838,57 +950,45 @@ export default function ParticipantSubmissionPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-            <p className="text-sm font-medium text-[#A01C33]">Important Guidelines</p>
-            <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+          <div className="rounded-[30px] border border-[#ece7ea] bg-white/92 p-6 shadow-[0_22px_60px_rgba(45,32,39,0.08)] backdrop-blur sm:p-7">
+            <p className="text-sm font-medium text-[#8f4250]">Important Guidelines</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#261b1f]">
               Before you submit
             </h2>
 
             <div className="mt-6 space-y-4">
-              <div className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+              <div className="rounded-[24px] border border-[#ece7ea] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f7_100%)] p-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#A01C33] shadow-sm">
                     <ClipboardCheck className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-[#3B3C3E]">Only team leader can submit</h3>
-                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                    <h3 className="font-bold text-[#261b1f]">Only team leader can submit</h3>
+                    <p className="mt-1 text-sm leading-6 text-[#625a60]">
                       Final submission control is restricted to the team leader.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5">
+              <div className="rounded-[24px] border border-[#ece7ea] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f7_100%)] p-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#A01C33] shadow-sm">
                     <FolderKanban className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-[#3B3C3E]">Drafts can be updated</h3>
-                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                    <h3 className="font-bold text-[#261b1f]">Drafts can be updated</h3>
+                    <p className="mt-1 text-sm leading-6 text-[#625a60]">
                       Save progress first, then finalize before deadline lock.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[22px] border border-dashed border-[#A01C33]/25 bg-[#A01C33]/[0.03] p-5">
-                <p className="text-sm font-medium text-[#A01C33]">Recommended next step</p>
-                <p className="mt-2 text-sm leading-7 text-[#3B3C3E]">
-                  {!team
-                    ? "Create your team first."
-                    : team.status === "disqualified"
-                    ? "Your team is currently restricted from making a submission."
-                    : !team.problemStatement
-                    ? "Select a problem statement before final submission."
-                    : !isLeader
-                    ? "Coordinate with your team leader to complete the final submission."
-                    : isLocked
-                    ? "Submission editing is locked now. Review the saved final details."
-                    : !allRequiredComplete
-                    ? "Complete all required fields and links, then do the final submission."
-                    : "Everything essential is ready. You can save a draft or submit the final project now."}
+              <div className="rounded-[24px] border border-dashed border-[#ecd7de] bg-[#fcf4f6] p-5">
+                <p className="text-sm font-medium text-[#8f4250]">Recommended next step</p>
+                <p className="mt-2 text-sm leading-7 text-[#3d3136]">
+                  {nextActionDescription}
                 </p>
               </div>
             </div>

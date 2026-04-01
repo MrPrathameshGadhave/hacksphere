@@ -6,10 +6,19 @@ import User from "@/models/User";
 import { loginSchema } from "@/lib/validations/auth";
 import { signToken } from "@/lib/auth";
 
+function isMongoConnectionError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    /Mongo/i.test(error.name) &&
+    /(timeout|timed out|server selection|network|connect)/i.test(error.message)
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
-
     const body = await request.json();
 
     const validatedFields = loginSchema.safeParse(body);
@@ -26,6 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password } = validatedFields.data;
+
+    await connectDB();
 
     const user = await User.findOne({ email });
 
@@ -51,14 +62,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (user.role === "judge") {
+      if (user.judgeStatus === "blocked") {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Your judge account has been blocked. Please contact the organizers.",
+          },
+          { status: 403 }
+        );
+      }
+
+      if (user.judgeStatus !== "active") {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Your judge account is pending admin approval. Please wait for approval before signing in.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (!user.isApproved) {
-      return NextResponse.json(
+      // Create a temporary token just for showing the pending page
+      const tempToken = signToken({
+        userId: user._id.toString(),
+        email: user.email,
+        role: user.role,
+      });
+
+      const response = NextResponse.json(
         {
           success: false,
-          message: "Your account is not approved yet",
+          message: "Your account is pending approval",
+          isApprovalPending: true,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            college: user.college,
+            isApproved: false,
+          },
         },
         { status: 403 }
       );
+
+      // Set temporary token for approval pending page access
+      response.cookies.set("hacksphere_token", tempToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
+      return response;
     }
 
     const token = signToken({
@@ -97,6 +159,17 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Login error:", error);
+
+    if (isMongoConnectionError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Database connection is unavailable right now. Please try again in a moment.",
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json(
       {

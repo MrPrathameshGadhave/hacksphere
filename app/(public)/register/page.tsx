@@ -73,6 +73,14 @@ function RegisterContent() {
     passwordChecks.hasLetter &&
     passwordChecks.hasNumber;
 
+  const getApprovalPendingPath = () => {
+    if (!redirectTarget) return "/participant/approval-pending";
+
+    const params = new URLSearchParams();
+    params.set("redirect", redirectTarget);
+    return `/participant/approval-pending?${params.toString()}`;
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -170,20 +178,33 @@ function RegisterContent() {
         return;
       }
 
-      const loginResponse = await axios.post("/api/auth/login", {
-        email: normalizedEmail,
-        password: formData.password,
-      });
+      try {
+        const loginResponse = await axios.post("/api/auth/login", {
+          email: normalizedEmail,
+          password: formData.password,
+        });
 
-      if (loginResponse.data?.success) {
-        toast.success("Account created successfully");
-        router.replace(redirectTarget || "/participant/dashboard");
-        router.refresh();
-      } else {
+        if (loginResponse.data?.success) {
+          toast.success("Account created successfully");
+          router.replace(redirectTarget || "/participant/dashboard");
+          router.refresh();
+          return;
+        }
+      } catch (loginError: any) {
+        if (loginError?.response?.data?.isApprovalPending) {
+          toast.success(
+            "Account created successfully. Your approval is still pending."
+          );
+          router.replace(getApprovalPendingPath());
+          router.refresh();
+          return;
+        }
+
         toast.success("Account created successfully. Please login.");
         router.replace(
           `/login${redirectTarget ? `?redirect=${encodeURIComponent(redirectTarget)}` : ""}`
         );
+        return;
       }
     } catch (error: any) {
       toast.error(

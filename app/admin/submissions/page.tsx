@@ -13,8 +13,10 @@ import {
   Globe,
   Loader2,
   Lock,
+  Search,
   Send,
   ShieldCheck,
+  Sparkles,
   UserRound,
   Users,
   X,
@@ -95,6 +97,7 @@ type AssignmentJudge = {
   assignmentStatus: "available" | "assigned" | "in-progress" | "completed";
   assignedProjects: number;
   completedReviews: number;
+  canAssign?: boolean;
 };
 
 type SubmissionAssignmentsResponse = {
@@ -157,6 +160,11 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 function getInitials(name: string) {
   const parts = name
     .trim()
@@ -172,17 +180,20 @@ function getInitials(name: string) {
 function AdminSubmissionSkeleton() {
   return (
     <section className="space-y-6">
-      <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+      <div className="overflow-hidden rounded-[34px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfc_0%,#fff4f2_48%,#f8fafc_100%)] p-8 shadow-[0_24px_60px_rgba(74,36,48,0.08)] lg:p-10">
+        <div className="grid gap-8 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
           <div className="space-y-4">
-            <div className="h-10 w-64 animate-pulse rounded-full bg-white/15" />
-            <div className="h-10 w-full max-w-[520px] animate-pulse rounded-2xl bg-white/15" />
-            <div className="h-20 w-full max-w-[620px] animate-pulse rounded-2xl bg-white/10" />
+            <div className="h-10 w-64 animate-pulse rounded-full bg-[#eadfe3]" />
+            <div className="h-10 w-full max-w-[520px] animate-pulse rounded-2xl bg-[#f0e6e8]" />
+            <div className="h-20 w-full max-w-[620px] animate-pulse rounded-2xl bg-[#f5edef]" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="h-28 animate-pulse rounded-[24px] bg-white/10" />
-            <div className="h-28 animate-pulse rounded-[24px] bg-white/10" />
+          <div className="space-y-4">
+            <div className="h-32 animate-pulse rounded-[28px] bg-white" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="h-28 animate-pulse rounded-[24px] bg-white" />
+              <div className="h-28 animate-pulse rounded-[24px] bg-white" />
+            </div>
           </div>
         </div>
       </div>
@@ -254,11 +265,23 @@ function SubmissionAssignmentsModal({
 }) {
   if (!open || !submission) return null;
 
-  const toggleJudgeSelection = (judgeId: string) => {
+  const assignableJudgeIds = new Set(
+    (data?.availableJudges || [])
+      .filter((judge) => judge.canAssign !== false)
+      .map((judge) => judge.id)
+  );
+
+  const selectedAssignableCount = selectedJudgeIds.filter((judgeId) =>
+    assignableJudgeIds.has(judgeId)
+  ).length;
+
+  const toggleJudgeSelection = (judge: AssignmentJudge) => {
+    if (judge.canAssign === false) return;
+
     setSelectedJudgeIds((prev) =>
-      prev.includes(judgeId)
-        ? prev.filter((id) => id !== judgeId)
-        : [...prev, judgeId]
+      prev.includes(judge.id)
+        ? prev.filter((id) => id !== judge.id)
+        : [...prev, judge.id]
     );
   };
 
@@ -442,16 +465,20 @@ function SubmissionAssignmentsModal({
                   {data?.availableJudges?.length ? (
                     data.availableJudges.map((judge) => {
                       const selected = selectedJudgeIds.includes(judge.id);
+                      const canAssign = judge.canAssign !== false;
 
                       return (
                         <button
                           key={judge.id}
                           type="button"
-                          onClick={() => toggleJudgeSelection(judge.id)}
-                          className={`w-full rounded-[22px] border p-5 text-left transition ${
+                          onClick={() => toggleJudgeSelection(judge)}
+                          disabled={saving || !canAssign}
+                          className={`w-full rounded-[22px] border p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                             selected
                               ? "border-[#A01C33] bg-[#A01C33]/[0.04]"
-                              : "border-gray-200 bg-[#fcfcfd] hover:border-[#A01C33]/30 hover:bg-white"
+                              : canAssign
+                              ? "border-gray-200 bg-[#fcfcfd] hover:border-[#A01C33]/30 hover:bg-white"
+                              : "border-gray-200 bg-[#f5f5f5]"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-4">
@@ -497,6 +524,11 @@ function SubmissionAssignmentsModal({
                             <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                               Completed: {judge.completedReviews}
                             </span>
+                            {!canAssign ? (
+                              <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">
+                                Only active judges can be assigned
+                              </span>
+                            ) : null}
                           </div>
                         </button>
                       );
@@ -525,7 +557,7 @@ function SubmissionAssignmentsModal({
           <button
             type="button"
             onClick={onSave}
-            disabled={saving || loading || selectedJudgeIds.length === 0}
+            disabled={saving || loading || selectedAssignableCount === 0}
             className="rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c] disabled:opacity-60"
           >
             {saving ? "Saving..." : "Assign Selected Judges"}
@@ -633,7 +665,7 @@ export default function AdminSubmissionsPage() {
       setSelectedJudgeIds(
         data.selectedJudgeIds?.length
           ? data.selectedJudgeIds
-          : (data.assignedJudges || []).map((judge) => judge.id)
+          : []
       );
     } catch (err) {
       const message =
@@ -713,6 +745,7 @@ export default function AdminSubmissionsPage() {
   const stats = useMemo(() => {
     return {
       total: allSubmissions.length,
+      draft: allSubmissions.filter((item) => item.dbStatus === "draft").length,
       submitted: allSubmissions.filter((item) => item.dbStatus === "submitted")
         .length,
       locked: allSubmissions.filter((item) => item.dbStatus === "locked").length,
@@ -724,6 +757,27 @@ export default function AdminSubmissionsPage() {
       ).length,
     };
   }, [allSubmissions]);
+
+  const reviewCompletionRate = useMemo(
+    () => calculatePercentage(stats.completedCoverage, stats.total),
+    [stats.completedCoverage, stats.total]
+  );
+
+  const judgingReadyRate = useMemo(
+    () => calculatePercentage(stats.readyForJudging, stats.total),
+    [stats.readyForJudging, stats.total]
+  );
+
+  const filteredAssignedCoverage = useMemo(
+    () =>
+      filteredSubmissions.filter(
+        (item) => item.reviewCoverage.coverageStatus !== "Not Assigned"
+      ).length,
+    [filteredSubmissions]
+  );
+
+  const hasActiveFilters =
+    searchTerm.trim().length > 0 || submissionFilter !== "All";
 
   const handleStatusChange = async (
     submissionId: string,
@@ -777,6 +831,22 @@ export default function AdminSubmissionsPage() {
   const handleSaveAssignments = async () => {
     if (!assignmentSubmission) return;
 
+    const assignableJudgeIds = new Set(
+      (assignmentData?.availableJudges || [])
+        .filter((judge) => judge.canAssign !== false)
+        .map((judge) => judge.id)
+    );
+
+    const validSelectedJudgeIds = selectedJudgeIds.filter((judgeId) =>
+      assignableJudgeIds.has(judgeId)
+    );
+
+    if (validSelectedJudgeIds.length === 0) {
+      setError("Select at least one active judge.");
+      setBannerMessage("");
+      return;
+    }
+
     try {
       setAssignmentSaving(true);
       setError("");
@@ -790,7 +860,7 @@ export default function AdminSubmissionsPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            judgeIds: selectedJudgeIds,
+            judgeIds: validSelectedJudgeIds,
           }),
         }
       );
@@ -1355,46 +1425,79 @@ export default function AdminSubmissionsPage() {
   return (
     <>
       <section className="space-y-6">
-        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+        <div className="overflow-hidden rounded-[34px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfc_0%,#fff4f2_48%,#f8fafc_100%)] p-8 shadow-[0_24px_60px_rgba(74,36,48,0.08)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
             <div>
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-                Submission Management • Admin Control
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white/85 px-4 py-2 text-sm font-semibold text-[#9a6773]">
+                <Sparkles className="h-4 w-4 text-[#A01C33]" />
+                Submission Command View
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                Manage project submissions, resources, and judging readiness.
+              <h1 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-tight text-[#22171c] sm:text-4xl">
+                Supervise delivery status, resource quality, and judging readiness from one clean admin workspace.
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                Review real project records, inspect linked resources, control
-                submission status, and assign judges directly from the submission
-                workspace.
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+                Review live submission records, inspect project assets, move submissions through the workflow,
+                and control judge assignments without bouncing between multiple admin screens.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  Ready for judging: <span className="text-[#A01C33]">{stats.readyForJudging}</span>
+                </div>
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  Fully reviewed: <span className="text-[#A01C33]">{stats.completedCoverage}</span>
+                </div>
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  In current view: <span className="text-[#A01C33]">{filteredSubmissions.length}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">
-                  Filtered Result
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[#eadfe3] bg-white/88 p-6 shadow-sm">
+                <p className="text-sm font-medium text-[#9a6773]">Judging Readiness</p>
+                <div className="mt-2 flex items-center justify-between gap-4">
+                  <h3 className="text-3xl font-black text-[#22171c]">
+                    {judgingReadyRate}%
+                  </h3>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                  {stats.readyForJudging} of {stats.total} submissions are already submitted or locked and can move through judging coverage.
                 </p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {filteredSubmissions.length}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Submission records visible in this view.
-                </p>
+
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#f3e8ec]">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#a01c33_0%,#d27b8d_100%)] transition-all"
+                    style={{ width: `${Math.min(judgingReadyRate, 100)}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Admin Scope</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  Status + Assignments
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Supervise judging readiness and assign judges without leaving
-                  this page.
-                </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#9a6773]">Review Completion</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                    {reviewCompletionRate}%
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                    Submission records whose judging coverage is fully completed.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#9a6773]">Active Coverage</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                    {filteredAssignedCoverage}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                    Filtered submissions that already have judges assigned or work in review.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1420,6 +1523,9 @@ export default function AdminSubmissionsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {stats.total}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  All project deliveries currently stored in the platform.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <FolderKanban className="h-5 w-5" />
@@ -1434,6 +1540,9 @@ export default function AdminSubmissionsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {stats.submitted}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Finalized records actively waiting in the review pipeline.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
                 <Send className="h-5 w-5" />
@@ -1448,6 +1557,9 @@ export default function AdminSubmissionsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {stats.locked}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Entries preserved for judging with editing closed.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <Lock className="h-5 w-5" />
@@ -1464,6 +1576,9 @@ export default function AdminSubmissionsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {stats.readyForJudging}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Submitted plus locked records available for assignment.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <ShieldCheck className="h-5 w-5" />
@@ -1480,6 +1595,9 @@ export default function AdminSubmissionsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {stats.completedCoverage}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Submission records whose review coverage is complete.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
                 <ClipboardCheck className="h-5 w-5" />
@@ -1488,36 +1606,83 @@ export default function AdminSubmissionsPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-            <input
-              type="text"
-              placeholder="Search by project, team, leader, or problem..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="h-[52px] rounded-2xl border border-gray-200 px-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33]"
-            />
+        <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-medium text-[#A01C33]">Submission Records</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
+                Search, filter, and control delivery workflow
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Focus on judging-ready submissions first, then monitor asset quality, review coverage, and assignment movement from the same surface.
+              </p>
+            </div>
 
-            <select
-              value={submissionFilter}
-              onChange={(event) => setSubmissionFilter(event.target.value)}
-              className="h-[52px] rounded-2xl border border-gray-200 px-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33]"
-            >
-              <option value="All">All</option>
-              <option value="Draft">Draft</option>
-              <option value="Submitted">Submitted</option>
-              <option value="Locked">Locked</option>
-              <option value="Not Assigned">Not Assigned</option>
-              <option value="Assigned">Assigned</option>
-              <option value="In Review">In Review</option>
-              <option value="Completed">Completed</option>
-            </select>
+            <div className="grid gap-3 md:grid-cols-[1fr_220px] xl:min-w-[620px]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by project, team, leader, or problem..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="h-[52px] w-full rounded-2xl border border-gray-200 bg-[#f8f8f9] pl-11 pr-4 text-sm text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:bg-white focus:ring-4 focus:ring-[#A01C33]/10"
+                />
+              </div>
+
+              <select
+                value={submissionFilter}
+                onChange={(event) => setSubmissionFilter(event.target.value)}
+                className="h-[52px] rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
+              >
+                <option value="All">All</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Locked">Locked</option>
+                <option value="Not Assigned">Not Assigned</option>
+                <option value="Assigned">Assigned</option>
+                <option value="In Review">In Review</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
           </div>
 
-          <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-gray-200 lg:block">
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+              Showing{" "}
+              <span className="font-bold text-[#2e1f25]">{filteredSubmissions.length}</span>{" "}
+              submission records in the current view.{" "}
+              <span className="font-semibold text-[#A01C33]">{stats.draft}</span> draft entries,
+              {" "}
+              <span className="font-semibold text-[#A01C33]">{stats.submitted}</span> submitted entries,
+              and{" "}
+              <span className="font-semibold text-[#A01C33]">{stats.locked}</span> locked entries are currently tracked.
+            </div>
+
+            <div className="flex flex-wrap gap-3 rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4">
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSubmissionFilter("All");
+                  }}
+                  className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Clear Filters
+                </button>
+              ) : null}
+
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                Assigned or in review: <span className="text-[#A01C33]">{filteredAssignedCoverage}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 hidden overflow-hidden rounded-[26px] border border-gray-200 lg:block">
             <div className="overflow-x-auto">
               <table className="min-w-full">
-                <thead className="bg-[#fcfcfd]">
+                <thead className="bg-[linear-gradient(180deg,#fcfcfd_0%,#f7f7f8_100%)]">
                   <tr className="text-left">
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">
                       Project
@@ -1553,31 +1718,45 @@ export default function AdminSubmissionsPage() {
       {selectedSubmission ? (
         <div className="fixed inset-0 z-[110] bg-black/45 px-4 py-6">
           <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-[0_25px_80px_rgba(0,0,0,0.24)]">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[#A01C33]">
-                  Submission Details
-                </p>
-                <h2 className="mt-1 truncate text-2xl font-bold text-[#3B3C3E]">
-                  {selectedSubmission.projectTitle}
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Team {selectedSubmission.teamName}
-                </p>
+            <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#9a6773]">
+                    Submission Overview
+                  </div>
+                  <h2 className="mt-3 truncate text-2xl font-bold text-[#3B3C3E]">
+                    {selectedSubmission.projectTitle}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Team {selectedSubmission.teamName}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubmission(null)}
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedSubmission(null)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${submissionStatusStyles[selectedSubmission.status]}`}
+                >
+                  {selectedSubmission.status}
+                </span>
+
+                <span className="inline-flex rounded-full border border-[#ead7de] bg-white px-3 py-1 text-xs font-semibold text-[#3B3C3E]">
+                  Coverage: {selectedSubmission.reviewCoverage.coverageStatus}
+                </span>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 shadow-sm">
                   <p className="text-sm font-medium text-gray-500">Status</p>
                   <div
                     className={`mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${submissionStatusStyles[selectedSubmission.status]}`}
@@ -1586,7 +1765,7 @@ export default function AdminSubmissionsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 shadow-sm">
                   <p className="text-sm font-medium text-gray-500">Submitted On</p>
                   <p className="mt-3 text-sm font-semibold text-[#3B3C3E]">
                     {formatDate(
@@ -1595,14 +1774,14 @@ export default function AdminSubmissionsPage() {
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 shadow-sm">
                   <p className="text-sm font-medium text-gray-500">Leader</p>
                   <p className="mt-3 text-sm font-semibold text-[#3B3C3E]">
                     {selectedSubmission.leader}
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 shadow-sm">
                   <p className="text-sm font-medium text-gray-500">Members</p>
                   <p className="mt-3 text-sm font-semibold text-[#3B3C3E]">
                     {selectedSubmission.memberCount}

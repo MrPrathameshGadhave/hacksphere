@@ -1,9 +1,62 @@
+'use client';
+
 import Image from 'next/image';
 import ttlogo from './utils/tt.jpeg';
 import dpgulogo from './utils/dpgu.jpeg';
 import Footer from "@/components/layout/Footer";
 import PublicHeader from "@/components/layout/PublicHeader";
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { FloatingOrbs, ParticleAnimation, HexagonPattern, ComplexShapeAnimation, AnimatedDots } from '@/components/home/AnimatedSVGElements';
+
+// SVG Icons/Illustrations Components
+const GearIcon = () => (
+  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const LightbulbIcon = () => (
+  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5h.01M9 9h.01" />
+  </svg>
+);
+
+const RocketIcon = () => (
+  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
+const AnimatedCounter = ({ end, duration = 2 }: { end: number; duration?: number }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const increment = end / (duration * 60);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 1000 / 60);
+
+    return () => clearInterval(timer);
+  }, [end, duration]);
+
+  return <>{count}</>;
+};
+
 export default function HackSphereLandingPage() {
   const stats = [
     { value: '48', label: 'Hours' },
@@ -136,12 +189,19 @@ export default function HackSphereLandingPage() {
      
 
       {/* HERO - COMPLETELY REDESIGNED */}
-      <section id="home" className="relative z-10">
-        <div className="mx-auto max-w-7xl px-6 pb-16 pt-14 lg:px-8 lg:pb-24 ">
+      <section id="home" className="relative z-10 overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <HexagonPattern />
+          <FloatingOrbs />
+          <ComplexShapeAnimation />
+        </div>
+
+        <div className="mx-auto max-w-7xl px-6 pb-16 pt-14 lg:px-8 lg:pb-24 relative z-10 ">
           <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-3 rounded-full border border-[#A01C33]/15 bg-white/90 px-4 py-2 text-sm font-semibold text-[#A01C33] shadow-sm backdrop-blur">
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white">
+              <div className="inline-flex items-center gap-3 rounded-full border border-[#A01C33]/15 bg-white/90 px-4 py-2 text-sm font-semibold text-[#A01C33] shadow-sm backdrop-blur animate-fade-in-down">
+                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white ">
                   <Image
                     src={ttlogo}
                     alt="Tech Titans logo"
@@ -154,12 +214,12 @@ export default function HackSphereLandingPage() {
               </div>
 
               <div className="max-w-5xl">
-                <p className="mb-3 text-sm font-bold uppercase tracking-[0.24em] text-[#A01C33]">
+                <p className="mb-3 text-sm font-bold uppercase tracking-[0.24em] text-[#A01C33] animate-fade-in-down" style={{ animationDelay: '100ms' }}>
                   College Hackathon Platform 2026
                 </p>
-                <h1 className="text-4xl font-black leading-[1.02] tracking-tight text-[#1F2937] md:text-5xl xl:text-6xl">
+                <h1 className="text-4xl font-black leading-[1.02] tracking-tight text-[#1F2937] md:text-5xl xl:text-6xl animate-fade-in-down" style={{ animationDelay: '200ms' }}>
                   HackSphere
-                  <span className="mt-3 block text-[#A01C33]">
+                  <span className="mt-3 block text-[#A01C33] bg-gradient-to-r from-[#A01C33] to-[#c92e4d] bg-clip-text text-transparent">
                     Built for innovation.
                   </span>
                   <span className="mt-2 block text-[#2D2E31]">
@@ -168,7 +228,7 @@ export default function HackSphereLandingPage() {
                 </h1>
               </div>
 
-              <p className="max-w-2xl text-lg leading-8 text-[#5B6068]">
+              <p className="max-w-2xl text-lg leading-8 text-[#5B6068] animate-fade-in-up" style={{ animationDelay: '300ms' }}>
                 HackSphere is a premium 48-hour college hackathon platform created and organized by{' '}
                 <span className="font-semibold text-[#A01C33]">
                   Tech Titans Technical Club of DPGU
@@ -177,22 +237,29 @@ export default function HackSphereLandingPage() {
                 collaboration, and recognition.
               </p>
 
-              <div className="flex flex-wrap gap-4">
-                <Link href="/register" className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5">
-                  Register Now
+              <div className="flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+                <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95">
+                  <span className="flex items-center gap-2">
+                    Register Now
+                    <RocketIcon />
+                  </span>
                 </Link>
-                <Link href="/problem-statements" className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition hover:border-[#A01C33] hover:text-[#A01C33]">
+                <Link href="/problem-statements" className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition-all duration-300 hover:border-[#A01C33] hover:text-[#A01C33] hover:shadow-md hover:-translate-y-0.5">
                   Problem Statements
                 </Link>
               </div>
 
               <div className="grid gap-4 pt-4 sm:grid-cols-2 xl:grid-cols-4">
-                {stats.map((stat) => (
+                {stats.map((stat, i) => (
                   <div
                     key={stat.label}
-                    className="rounded-[24px] border border-white/80 bg-white/92 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur"
+                    className="group rounded-[24px] border border-white/80 bg-white/92 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur transition-all duration-500 transform hover:shadow-[0_25px_50px_rgba(160,28,51,0.15)] hover:scale-105 hover:-translate-y-1 cursor-pointer animate-fade-in"
+                    style={{ animationDelay: `${i * 100}ms` }}
                   >
-                    <div className="text-3xl font-black text-[#A01C33]">{stat.value}</div>
+                    <div className="text-3xl font-black text-[#A01C33] transition-transform group-hover:scale-110">
+                      {stat.value.includes('+') ? stat.value : <AnimatedCounter end={parseInt(stat.value)} />}
+                      {stat.value.includes('+') && '+'}
+                    </div>
                     <div className="mt-1 text-sm font-medium text-[#6B7280]">{stat.label}</div>
                   </div>
                 ))}
@@ -312,8 +379,8 @@ export default function HackSphereLandingPage() {
           </div>
 
           {/* BIG FEATURE STRIP */}
-          <div className="mt-10 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_22px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+          <div className="mt-10 grid gap-4 lg:grid-cols-[1.15fr_0.85fr] animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+            <div className="group rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_22px_50px_rgba(15,23,42,0.06)] backdrop-blur transition-all duration-500 hover:shadow-[0_30px_70px_rgba(160,28,51,0.12)] hover:border-[#A01C33]/30">
               <div className="grid gap-6 md:grid-cols-[0.95fr_1.05fr]">
                 <div>
                   <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#A01C33]">
@@ -335,10 +402,10 @@ export default function HackSphereLandingPage() {
                     'Technical leadership',
                     'Premium event flow',
                     'Visible institutional identity',
-                  ].map((item) => (
+                  ].map((item, idx) => (
                     <div
                       key={item}
-                      className="rounded-2xl border border-[#EEF2F7] bg-[#FCFCFD] p-4"
+                      className="rounded-2xl border border-[#EEF2F7] bg-[#FCFCFD] p-4 transition-all duration-300 hover:border-[#A01C33]/20 hover:bg-white hover:shadow-md transform hover:scale-105 cursor-pointer"
                     >
                       <p className="text-sm font-bold text-[#202225]">{item}</p>
                     </div>
@@ -347,23 +414,34 @@ export default function HackSphereLandingPage() {
               </div>
             </div>
 
-            <div className="rounded-[32px] bg-gradient-to-br from-[#A01C33] to-[#7E1428] p-6 text-white shadow-[0_24px_60px_rgba(160,28,51,0.25)]">
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/70">
-                Built with ownership
-              </p>
-              <h3 className="mt-3 text-2xl font-black">Hackathon prestige with club identity</h3>
-              <p className="mt-4 text-sm leading-7 text-white/80">
-                The page is intentionally designed so visitors immediately understand that
-                Tech Titans Technical Club of DPGU leads the event with innovation,
-                execution, and campus-level impact.
-              </p>
+            <div className="group rounded-[32px] bg-gradient-to-br from-[#A01C33] via-[#912637] to-[#7E1428] p-6 text-white shadow-[0_24px_60px_rgba(160,28,51,0.25)] transition-all duration-500 hover:shadow-[0_30px_80px_rgba(160,28,51,0.35)] hover:-translate-y-1 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <svg className="absolute w-full h-full" viewBox="0 0 2 2" preserveAspectRatio="none">
+                  <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.1" />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                  </linearGradient>
+                  <rect width="2" height="2" fill="url(#grad2)" />
+                </svg>
+              </div>
+              <div className="relative z-10">
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/70">
+                  Built with ownership
+                </p>
+                <h3 className="mt-3 text-2xl font-black">Hackathon prestige with club identity</h3>
+                <p className="mt-4 text-sm leading-7 text-white/80">
+                  The page is intentionally designed so visitors immediately understand that
+                  Tech Titans Technical Club of DPGU leads the event with innovation,
+                  execution, and campus-level impact.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <section id="techtitans" className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="mb-12 max-w-3xl">
+        <div className="mb-12 max-w-3xl animate-fade-in-up">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
             About Tech Titans Technical Club of DPGU
           </p>
@@ -377,13 +455,17 @@ export default function HackSphereLandingPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {techTitansValues.map((item) => (
+          {techTitansValues.map((item, i) => (
             <div
               key={item.title}
-              className="rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]"
+              className="group rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] transition-all duration-500 transform hover:shadow-[0_30px_60px_rgba(160,28,51,0.15)] hover:-translate-y-2 hover:border-[#A01C33]/30 animate-fade-in-up cursor-pointer"
+              style={{ animationDelay: `${i * 100}ms` }}
             >
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8E9ED] text-lg font-black text-[#A01C33]">
-                {item.title.charAt(0)}
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F8E9ED] to-[#FCE4EC] text-lg font-black text-[#A01C33] group-hover:scale-110 transition-transform duration-300">
+                {i === 0 && <GearIcon />}
+                {i === 1 && <RocketIcon />}
+                {i === 2 && <StarIcon />}
+                {i === 3 && <LightbulbIcon />}
               </div>
               <h3 className="text-xl font-bold text-[#202225]">{item.title}</h3>
               <p className="mt-3 text-sm leading-7 text-[#6B7280]">{item.text}</p>
@@ -394,7 +476,7 @@ export default function HackSphereLandingPage() {
 
       <section id="about-hackathon" className="relative z-10 bg-white py-20">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
-          <div>
+          <div className="animate-fade-in-up">
             <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
               About HackSphere
             </p>
@@ -408,12 +490,12 @@ export default function HackSphereLandingPage() {
             </p>
           </div>
 
-          <div className="rounded-[32px] border border-[#EEF2F7] bg-[#F9FAFB] p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <div className="rounded-[32px] border border-[#EEF2F7] bg-[#F9FAFB] p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition-all duration-500 hover:shadow-[0_30px_70px_rgba(160,28,51,0.08)] animate-fade-in-up" style={{ animationDelay: '100ms' }}>
             <div className="grid gap-3 sm:grid-cols-2">
-              {hacksphereFeatures.map((feature) => (
+              {hacksphereFeatures.map((feature, idx) => (
                 <div
                   key={feature}
-                  className="rounded-2xl bg-white px-4 py-4 text-sm font-medium text-[#3B3C3E] shadow-sm ring-1 ring-[#EEF2F7]"
+                  className="rounded-2xl bg-white px-4 py-4 text-sm font-medium text-[#3B3C3E] shadow-sm ring-1 ring-[#EEF2F7] transition-all duration-300 hover:ring-[#A01C33]/20 hover:shadow-md transform hover:scale-105 cursor-pointer"
                 >
                   {feature}
                 </div>
@@ -424,7 +506,7 @@ export default function HackSphereLandingPage() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="mb-12 max-w-3xl">
+        <div className="mb-12 max-w-3xl animate-fade-in-up">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
             Why Join
           </p>
@@ -437,13 +519,17 @@ export default function HackSphereLandingPage() {
           {joinBenefits.map((item, index) => (
             <div
               key={item.title}
-              className="rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]"
+              className="group rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] transition-all duration-500 transform hover:shadow-[0_30px_60px_rgba(160,28,51,0.15)] hover:-translate-y-2 hover:border-[#A01C33]/30 animate-fade-in-up cursor-pointer relative overflow-hidden"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8E9ED] text-base font-black text-[#A01C33]">
-                {index + 1}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#A01C33]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8E9ED] text-base font-black text-[#A01C33] group-hover:scale-110 transition-transform duration-300">
+                  {index + 1}
+                </div>
+                <h3 className="text-xl font-bold text-[#202225]">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#6B7280]">{item.text}</p>
               </div>
-              <h3 className="text-xl font-bold text-[#202225]">{item.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-[#6B7280]">{item.text}</p>
             </div>
           ))}
         </div>
@@ -451,7 +537,7 @@ export default function HackSphereLandingPage() {
 
       <section className="relative z-10 bg-white py-20">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mb-12 max-w-3xl">
+          <div className="mb-12 max-w-3xl animate-fade-in-up">
             <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
               Journey
             </p>
@@ -464,12 +550,16 @@ export default function HackSphereLandingPage() {
             {steps.map((step, index) => (
               <div
                 key={step}
-                className="rounded-[24px] border border-[#EEF2F7] bg-[#FCFCFD] p-6 shadow-sm"
+                className="group rounded-[24px] border border-[#EEF2F7] bg-[#FCFCFD] p-6 shadow-sm transition-all duration-500 transform hover:shadow-lg hover:border-[#A01C33]/30 hover:-translate-y-1 animate-fade-in-up relative overflow-hidden"
+                style={{ animationDelay: `${index * 80}ms` }}
               >
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33] text-lg font-black text-white">
-                  {index + 1}
+                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#A01C33]/5 group-hover:bg-[#A01C33]/10 transition-colors duration-300" />
+                <div className="relative z-10">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#A01C33] to-[#7E1428] text-lg font-black text-white group-hover:scale-110 transition-transform duration-300 shadow-md">
+                    {index + 1}
+                  </div>
+                  <h3 className="text-lg font-bold text-[#202225]">{step}</h3>
                 </div>
-                <h3 className="text-lg font-bold text-[#202225]">{step}</h3>
               </div>
             ))}
           </div>
@@ -477,7 +567,7 @@ export default function HackSphereLandingPage() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="mb-12 max-w-4xl">
+        <div className="mb-12 max-w-4xl animate-fade-in-up">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
             Tech Titans Impact
           </p>
@@ -494,9 +584,11 @@ export default function HackSphereLandingPage() {
           {techTitansImpact.map((item, index) => (
             <div
               key={item.title}
-              className="rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_22px_50px_rgba(15,23,42,0.06)]"
+              className="group rounded-[30px] border border-white/80 bg-white/95 p-6 shadow-[0_22px_50px_rgba(15,23,42,0.06)] transition-all duration-500 transform hover:shadow-[0_30px_70px_rgba(160,28,51,0.12)] hover:-translate-y-2 hover:border-[#A01C33]/30 animate-fade-in-up"
+              style={{ animationDelay: `${index * 80}ms` }}
             >
-              <div className="mb-4 inline-flex rounded-full bg-[#F8E9ED] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#A01C33]">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#F8E9ED] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#A01C33] group-hover:bg-[#A01C33] group-hover:text-white transition-all duration-300">
+                <span className="inline-block w-2 h-2 rounded-full bg-current"></span>
                 Phase {index + 1}
               </div>
               <h3 className="text-xl font-bold text-[#202225]">{item.title}</h3>
@@ -508,7 +600,7 @@ export default function HackSphereLandingPage() {
 
       <section className="relative z-10 bg-white py-20">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mb-12 max-w-3xl">
+          <div className="mb-12 max-w-3xl animate-fade-in-up">
             <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#A01C33]">
               Event Highlights
             </p>
@@ -518,12 +610,15 @@ export default function HackSphereLandingPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
-            {highlights.map((item) => (
+            {highlights.map((item, idx) => (
               <div
                 key={item}
-                className="rounded-[24px] border border-[#EEF2F7] bg-[#FCFCFD] p-6 shadow-sm"
+                className="group rounded-[24px] border border-[#EEF2F7] bg-[#FCFCFD] p-6 shadow-sm transition-all duration-500 transform hover:shadow-md hover:border-[#A01C33]/30 hover:-translate-y-1 cursor-pointer animate-fade-in-up"
+                style={{ animationDelay: `${idx * 80}ms` }}
               >
-                <div className="mb-4 h-12 w-12 rounded-2xl bg-[#F8E9ED]" />
+                <div className="mb-4 h-12 w-12 rounded-2xl bg-gradient-to-br from-[#F8E9ED] to-[#FCE4EC] group-hover:from-[#A01C33] group-hover:to-[#7E1428] transition-all duration-300 flex items-center justify-center">
+                  <StarIcon />
+                </div>
                 <p className="text-base font-bold leading-7 text-[#202225]">{item}</p>
               </div>
             ))}
@@ -532,25 +627,33 @@ export default function HackSphereLandingPage() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="overflow-hidden rounded-[36px] bg-[#202225] px-8 py-12 text-white shadow-[0_30px_70px_rgba(15,23,42,0.18)] lg:px-12">
-          <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#F2B7C2]">
-            Ready to Join?
-          </p>
-          <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-tight md:text-5xl">
-            Join HackSphere. Experience the innovation led by Tech Titans Technical Club of DPGU.
-          </h2>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-white/75">
-            Become part of a hackathon experience where student innovation meets
-            strong leadership, premium execution, and a platform built for serious creators.
-          </p>
+        <div className="overflow-hidden rounded-[36px] bg-gradient-to-br from-[#202225] via-[#2a2d33] to-[#1a1b1f] px-8 py-12 text-white shadow-[0_30px_70px_rgba(15,23,42,0.18)] lg:px-12 relative">
+          {/* Animated background */}
+          <div className="absolute inset-0 pointer-events-none opacity-40">
+            <ParticleAnimation />
+          </div>
 
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link href="/register" className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25">
-              Register
-            </Link>
-            <Link href="/#about-hackathon" className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm">
-              Learn More
-            </Link>
+          <div className="relative z-10">
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#F2B7C2] animate-fade-in-down">
+              Ready to Join?
+            </p>
+            <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-tight md:text-5xl animate-fade-in-down" style={{ animationDelay: '100ms' }}>
+              Join HackSphere. Experience the innovation led by Tech Titans Technical Club of DPGU.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-white/75 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+              Become part of a hackathon experience where student innovation meets
+              strong leadership, premium execution, and a platform built for serious creators.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+              <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95 flex items-center gap-2">
+                <RocketIcon />
+                Register
+              </Link>
+              <Link href="/#about-hackathon" className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 hover:-translate-y-0.5">
+                Learn More
+              </Link>
+            </div>
           </div>
         </div>
       </section>

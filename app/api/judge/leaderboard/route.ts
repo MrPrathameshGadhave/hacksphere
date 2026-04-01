@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import { buildAdminLeaderboardData } from "@/lib/leaderboard";
+import User from "@/models/User";
+
+async function ensureActiveJudge(userId: string) {
+  const judge = await User.findOne({
+    _id: userId,
+    role: "judge",
+  }).select("isApproved judgeStatus");
+
+  if (!judge) {
+    return NextResponse.json(
+      { success: false, message: "Forbidden." },
+      { status: 403 }
+    );
+  }
+
+  if (judge.judgeStatus === "blocked") {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Your judge account has been blocked. Please contact the organizers.",
+      },
+      { status: 403 }
+    );
+  }
+
+  if (judge.judgeStatus !== "active" || judge.isApproved === false) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Your judge account is pending admin approval. Please wait for approval before accessing judge tools.",
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +62,12 @@ export async function GET(request: NextRequest) {
         { success: false, message: "Forbidden." },
         { status: 403 }
       );
+    }
+
+    const judgeAccessError = await ensureActiveJudge(currentUser.userId);
+
+    if (judgeAccessError) {
+      return judgeAccessError;
     }
 
     const leaderboard = await buildAdminLeaderboardData();

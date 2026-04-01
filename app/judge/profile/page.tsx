@@ -273,8 +273,8 @@ export default function JudgeProfilePage() {
           name: values.name,
           email: values.email,
           college: values.organization,
-            phone: values.phone,
-
+          phone: values.phone,
+          bio: values.bio,
         }),
       });
 

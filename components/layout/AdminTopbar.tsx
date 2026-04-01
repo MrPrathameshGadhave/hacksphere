@@ -3,12 +3,21 @@
 import { Bell, Menu, Search } from "lucide-react";
 import ProfileDropdown from "@/components/layout/ProfileDropdown";
 
-export default function AdminTopbar() {
+type AdminTopbarProps = {
+  onMenuClick?: () => void;
+};
+
+export default function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur-md">
       <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-[#3B3C3E] lg:hidden">
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] lg:hidden"
+            aria-label="Open sidebar"
+          >
             <Menu className="h-5 w-5" />
           </button>
 

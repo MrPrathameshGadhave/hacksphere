@@ -42,6 +42,7 @@ export async function PATCH(request: NextRequest) {
     const email = normalizeText(body?.email).toLowerCase();
     const college = normalizeText(body?.college);
     const phone = normalizeText(body?.phone);
+    const bio = normalizeText(body?.bio);
 
     if (name.length < 2) {
       return NextResponse.json(
@@ -97,13 +98,14 @@ export async function PATCH(request: NextRequest) {
         email,
         college,
         phone,
+        bio,
       },
       {
         new: true,
         runValidators: true,
       }
     ).select(
-      "name email college phone avatar role isApproved judgeStatus createdAt updatedAt"
+      "name email college phone bio avatar role isApproved judgeStatus createdAt updatedAt"
     );
 
     if (!updatedUser) {

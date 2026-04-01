@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Types } from "mongoose";
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
+import { recordAdminAuditLog } from "@/lib/admin/audit";
 
 import "@/models/ProblemStatement";
 import "@/models/User";
@@ -187,6 +189,107 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { message: "Failed to fetch judges." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+
+    const currentUser = getAdminFromRequest(request);
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { message: "Invalid judge ID." },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const action = body?.action;
+
+    if (!["activate", "pending", "block"].includes(action)) {
+      return NextResponse.json(
+        { message: "Invalid judge action." },
+        { status: 400 }
+      );
+    }
+
+    const judge = await User.findOne({
+      _id: id,
+      role: "judge",
+    }).select("name email isApproved judgeStatus");
+
+    if (!judge) {
+      return NextResponse.json({ message: "Judge not found." }, { status: 404 });
+    }
+
+    if (action === "activate") {
+      judge.judgeStatus = "active";
+      judge.isApproved = true;
+    } else if (action === "pending") {
+      judge.judgeStatus = "pending";
+      judge.isApproved = false;
+    } else {
+      judge.judgeStatus = "blocked";
+      judge.isApproved = false;
+    }
+
+    await judge.save();
+
+    const status = getJudgeDisplayStatus(judge);
+    const message =
+      action === "activate"
+        ? "Judge approved successfully."
+        : action === "pending"
+        ? "Judge moved to pending approval."
+        : "Judge blocked successfully.";
+
+    await recordAdminAuditLog({
+      action:
+        action === "activate"
+          ? "approve_judge"
+          : action === "pending"
+          ? "mark_judge_pending"
+          : "block_judge",
+      adminId: currentUser.userId,
+      targetType: "judge",
+      targetId: id,
+      targetLabel: judge.name || judge.email || "Judge",
+      details: {
+        judgeEmail: judge.email || "",
+        nextStatus: status,
+        isApproved: Boolean(judge.isApproved),
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message,
+      judge: {
+        id: String(judge._id),
+        name: judge.name || "Unnamed Judge",
+        email: judge.email || "",
+        status,
+        isApproved: Boolean(judge.isApproved),
+      },
+    });
+  } catch (error) {
+    console.error("PATCH /api/admin/judges/[id] error:", error);
+
+    return NextResponse.json(
+      { message: "Failed to update judge." },
       { status: 500 }
     );
   }

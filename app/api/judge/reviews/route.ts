@@ -5,6 +5,7 @@ import { verifyToken } from "@/lib/auth";
 import "@/models/User";
 import "@/models/ProblemStatement";
 
+import User from "@/models/User";
 import Submission from "@/models/Submission";
 import Team from "@/models/Team";
 import Evaluation from "@/models/Evaluation";
@@ -86,6 +87,39 @@ function buildReviewItem({
   };
 }
 
+async function ensureActiveJudge(userId: string) {
+  const judge = await User.findOne({
+    _id: userId,
+    role: "judge",
+  }).select("isApproved judgeStatus");
+
+  if (!judge) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
+  if (judge.judgeStatus === "blocked") {
+    return NextResponse.json(
+      {
+        message:
+          "Your judge account has been blocked. Please contact the organizers.",
+      },
+      { status: 403 }
+    );
+  }
+
+  if (judge.judgeStatus !== "active" || judge.isApproved === false) {
+    return NextResponse.json(
+      {
+        message:
+          "Your judge account is pending admin approval. Please wait for approval before accessing judge tools.",
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -100,6 +134,12 @@ export async function GET(request: NextRequest) {
 
     if (!currentUser || currentUser.role !== "judge") {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const judgeAccessError = await ensureActiveJudge(currentUser.userId);
+
+    if (judgeAccessError) {
+      return judgeAccessError;
     }
 
     const assignments = (await JudgeAssignment.find({

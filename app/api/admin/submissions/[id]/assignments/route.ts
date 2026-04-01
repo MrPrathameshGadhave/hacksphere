@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
+import { recordAdminAuditLog } from "@/lib/admin/audit";
 
 import "@/models/User";
 import "@/models/ProblemStatement";
@@ -306,7 +307,7 @@ export async function POST(
     const submission = await Submission.findOne({
       _id: id,
       status: { $in: ["submitted", "locked"] },
-    }).select("_id status");
+    }).select("_id status projectTitle");
 
     if (!submission) {
       return NextResponse.json(
@@ -381,6 +382,18 @@ export async function POST(
       }))
     );
 
+    await recordAdminAuditLog({
+      action: "assign_submission_judges",
+      adminId: currentUser.userId,
+      targetType: "submission",
+      targetId: id,
+      targetLabel: submission.projectTitle || "Submission",
+      details: {
+        judgeIds: toCreate,
+        createdCount: toCreate.length,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "Judges assigned successfully.",
@@ -447,6 +460,17 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    await recordAdminAuditLog({
+      action: "remove_submission_judge_assignment",
+      adminId: currentUser.userId,
+      targetType: "submission",
+      targetId: id,
+      targetLabel: id,
+      details: {
+        judgeId,
+      },
+    });
 
     return NextResponse.json({
       success: true,

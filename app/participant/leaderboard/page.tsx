@@ -282,38 +282,41 @@ export default function ParticipantLeaderboardPage() {
   const rankingBasisLabel = rows.length > 0 ? "Judge Scores" : "Awaiting Scores";
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div className="rounded-[24px] border border-red-200 bg-[linear-gradient(135deg,#fff8f8_0%,#fff0f0_100%)] px-5 py-4 text-sm text-red-700 shadow-[0_10px_30px_rgba(185,28,28,0.08)]">
           {error}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#93192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.24)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+      <div className="relative overflow-hidden rounded-[34px] border border-[#ead8dd] bg-[linear-gradient(135deg,#fffdf9_0%,#fff3f1_52%,#fffaf6_100%)] p-6 shadow-[0_28px_80px_rgba(120,67,78,0.12)] sm:p-8 lg:p-10">
+        <div className="pointer-events-none absolute -left-10 top-0 h-40 w-40 rounded-full bg-[#f8dde3] blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-0 h-48 w-48 rounded-full bg-[#fde6db] blur-3xl" />
+
+        <div className="relative grid gap-8 xl:grid-cols-[1.2fr_0.92fr] xl:items-start">
           <div>
-            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-              Leaderboard • Official Published Rankings
+            <div className="inline-flex items-center rounded-full border border-[#ead7de] bg-white/80 px-4 py-2 text-sm font-medium text-[#8d5d6a] shadow-sm">
+              Leaderboard | Official Published Rankings
             </div>
 
-            <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
+            <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight text-[#26161d] sm:text-4xl lg:text-[2.7rem]">
               Track rankings, team performance, and final published scores.
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5f4d53] sm:text-base">
               The leaderboard reflects team rankings based on judge evaluations,
               final score calculation, and official publishing by the HackSphere
               admin team.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Leaderboard Status</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-white/85 p-5 shadow-[0_16px_36px_rgba(74,36,48,0.06)]">
+              <p className="text-sm font-medium text-[#8d5d6a]">Leaderboard Status</p>
+              <h3 className="mt-2 text-2xl font-bold text-[#26161d]">
                 {loading ? "..." : leaderboardStatusLabel}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
+              <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
                 {loading
                   ? "Checking leaderboard visibility..."
                   : isPublished
@@ -322,12 +325,12 @@ export default function ParticipantLeaderboardPage() {
               </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Ranking Basis</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-white/85 p-5 shadow-[0_16px_36px_rgba(74,36,48,0.06)]">
+              <p className="text-sm font-medium text-[#8d5d6a]">Ranking Basis</p>
+              <h3 className="mt-2 text-2xl font-bold text-[#26161d]">
                 {loading ? "..." : rankingBasisLabel}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
+              <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
                 {loading
                   ? "Checking score details..."
                   : "Final score is based on evaluation criteria and averages."}

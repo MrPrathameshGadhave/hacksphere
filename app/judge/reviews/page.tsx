@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  getJudgeReviewActionLabel,
+  getJudgeReviewStatusClasses,
+  getJudgeReviewStatusLabel,
+  type JudgeReviewStatus,
+} from "@/lib/judge-review-status";
+import {
   ArrowRight,
   Brain,
   ChevronLeft,
@@ -20,8 +26,6 @@ import {
   Star,
   Users,
 } from "lucide-react";
-
-type ReviewStatus = "pending" | "in-progress" | "reviewed";
 
 type ReviewItem = {
   id: string;
@@ -44,7 +48,7 @@ type ReviewItem = {
   images: string[];
   submissionStatus: "draft" | "submitted" | "locked";
   submittedAt: string | null;
-  reviewStatus: ReviewStatus;
+  reviewStatus: JudgeReviewStatus;
   evaluation: {
     status: "draft" | "submitted";
     totalScore: number;
@@ -75,45 +79,6 @@ const scoreCriteria = [
 
 const ITEMS_PER_PAGE = 6;
 
-function getDisplayStatus(status: ReviewStatus) {
-  switch (status) {
-    case "pending":
-      return "Pending Review";
-    case "in-progress":
-      return "In Progress";
-    case "reviewed":
-      return "Reviewed";
-    default:
-      return "Pending Review";
-  }
-}
-
-function getStatusClasses(status: ReviewStatus) {
-  switch (status) {
-    case "pending":
-      return "bg-amber-100 text-amber-700";
-    case "in-progress":
-      return "bg-blue-100 text-blue-700";
-    case "reviewed":
-      return "bg-green-100 text-green-700";
-    default:
-      return "bg-amber-100 text-amber-700";
-  }
-}
-
-function getActionLabel(status: ReviewStatus) {
-  switch (status) {
-    case "pending":
-      return "Start Evaluation";
-    case "in-progress":
-      return "Continue Evaluation";
-    case "reviewed":
-      return "View Evaluation";
-    default:
-      return "Start Evaluation";
-  }
-}
-
 export default function JudgeReviewsPage() {
   const router = useRouter();
 
@@ -125,7 +90,7 @@ export default function JudgeReviewsPage() {
     reviewed: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState<"all" | JudgeReviewStatus>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -192,7 +157,6 @@ export default function JudgeReviewsPage() {
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const query = searchTerm.trim().toLowerCase();
-      const statusLabel = getDisplayStatus(project.reviewStatus);
 
       const matchesSearch =
         query.length === 0 ||
@@ -201,7 +165,7 @@ export default function JudgeReviewsPage() {
         project.problemTitle.toLowerCase().includes(query);
 
       const matchesStatus =
-        statusFilter === "All" ? true : statusLabel === statusFilter;
+        statusFilter === "all" ? true : project.reviewStatus === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -240,7 +204,7 @@ export default function JudgeReviewsPage() {
         <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
           <div>
             <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-              Review Queue • Assigned Project Evaluations
+              Review Queue | Assigned Project Reviews
             </div>
 
             <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
@@ -271,34 +235,44 @@ export default function JudgeReviewsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Visible Reviews</p>
+              <p className="text-sm font-medium text-white/80">Assigned Reviews</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {isLoading ? "—" : counts.total}
+                {isLoading ? "--" : counts.total}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Only your assigned projects are shown.
+                Projects currently in your judging queue.
               </p>
             </div>
 
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Pending</p>
+              <p className="text-sm font-medium text-white/80">Ready to Review</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {isLoading ? "—" : counts.pending}
+                {isLoading ? "--" : counts.pending}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Reviews not started yet.
+                Assigned reviews with no saved draft yet.
               </p>
             </div>
 
             <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">Reviewed</p>
+              <p className="text-sm font-medium text-white/80">Drafts in Progress</p>
               <h3 className="mt-2 text-2xl font-bold text-white">
-                {isLoading ? "—" : counts.reviewed}
+                {isLoading ? "--" : counts.inProgress}
               </h3>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Completed final evaluations.
+                Draft feedback exists but is not submitted yet.
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+              <p className="text-sm font-medium text-white/80">Submitted Reviews</p>
+              <h3 className="mt-2 text-2xl font-bold text-white">
+                {isLoading ? "--" : counts.reviewed}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-white/75">
+                Final reviews already submitted and locked.
               </p>
             </div>
           </div>
@@ -336,15 +310,15 @@ export default function JudgeReviewsPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => {
-                      setStatusFilter(e.target.value);
+                      setStatusFilter(e.target.value as "all" | JudgeReviewStatus);
                       setCurrentPage(1);
                     }}
                     className="h-12 min-w-[180px] appearance-none rounded-2xl border border-gray-200 bg-white pl-11 pr-10 text-sm font-semibold text-[#3B3C3E] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
                   >
-                    <option value="All">All Statuses</option>
-                    <option value="Pending Review">Pending Review</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Reviewed">Reviewed</option>
+                    <option value="all">All Stages</option>
+                    <option value="pending">Ready to Review</option>
+                    <option value="in-progress">Draft in Progress</option>
+                    <option value="reviewed">Submitted Review</option>
                   </select>
                 </div>
               </div>
@@ -417,7 +391,7 @@ export default function JudgeReviewsPage() {
               </div>
             ) : (
               paginatedProjects.map((project) => {
-                const statusLabel = getDisplayStatus(project.reviewStatus);
+                const statusLabel = getJudgeReviewStatusLabel(project.reviewStatus);
 
                 return (
                   <div
@@ -428,7 +402,7 @@ export default function JudgeReviewsPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getJudgeReviewStatusClasses(
                               project.reviewStatus
                             )}`}
                           >
@@ -507,7 +481,7 @@ export default function JudgeReviewsPage() {
                     <div className="mt-5 rounded-[22px] border border-dashed border-[#A01C33]/20 bg-[#A01C33]/[0.03] p-5">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm font-medium text-[#A01C33]">
-                          Evaluation Criteria Preview
+                          Scoring Criteria Preview
                         </p>
 
                         {project.evaluation && (
@@ -534,7 +508,7 @@ export default function JudgeReviewsPage() {
                         href={`/judge/reviews/${project.id}`}
                         className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c]"
                       >
-                        {getActionLabel(project.reviewStatus)}
+                        {getJudgeReviewActionLabel(project.reviewStatus)}
                         <ArrowRight className="h-4 w-4" />
                       </Link>
 

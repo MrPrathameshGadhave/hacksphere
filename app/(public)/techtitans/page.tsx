@@ -111,7 +111,7 @@ export default function TechTitansPage() {
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
               <div className="inline-flex items-center rounded-full border border-[#A01C33]/10 bg-[#A01C33]/5 px-4 py-2 text-sm font-semibold text-[#A01C33]">
-                Tech Titans • Organizing Club
+                Tech Titans | Organizing Club
               </div>
 
               <h1 className="mt-5 text-4xl font-black tracking-tight text-[#1F2937] sm:text-5xl">

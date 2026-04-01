@@ -45,13 +45,13 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       college: college || "",
       role: "participant",
-      isApproved: true,
+      isApproved: false,
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Participant account created successfully",
+        message: "Participant account created successfully! Your account is pending admin approval. You'll receive a notification once approved.",
         user: {
           id: newUser._id,
           name: newUser.name,

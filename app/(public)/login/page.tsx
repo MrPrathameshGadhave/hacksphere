@@ -88,6 +88,21 @@ function LoginContent() {
     }
   };
 
+  const getApprovalPendingPath = () => {
+    const params = new URLSearchParams();
+
+    if (redirect) {
+      params.set("redirect", redirect);
+    } else if (from) {
+      params.set("redirect", from);
+    }
+
+    const query = params.toString();
+    return query
+      ? `/participant/approval-pending?${query}`
+      : "/participant/approval-pending";
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -113,6 +128,13 @@ function LoginContent() {
         toast.error(response.data?.message || "Login failed");
       }
     } catch (error: any) {
+      if (error?.response?.data?.isApprovalPending) {
+        toast.success("Your account approval is still pending.");
+        router.replace(getApprovalPendingPath());
+        router.refresh();
+        return;
+      }
+
       toast.error(
         error?.response?.data?.message ||
           "Something went wrong. Please try again."

@@ -11,6 +11,7 @@ import {
   Mail,
   Search,
   ShieldCheck,
+  Sparkles,
   Users,
   UserRoundPlus,
   X,
@@ -238,8 +239,34 @@ export default function AdminTeamsPage() {
       active: allTeams.filter((team) => team.status === "Active").length,
       incomplete: allTeams.filter((team) => team.status === "Incomplete").length,
       blocked: allTeams.filter((team) => team.status === "Blocked").length,
+      selectedProblem: allTeams.filter(
+        (team) => team.problemStatus === "Selected"
+      ).length,
     };
   }, [allTeams]);
+
+  const activeRate = useMemo(
+    () => calculatePercentage(stats.active, stats.total),
+    [stats.active, stats.total]
+  );
+
+  const problemSelectionRate = useMemo(
+    () => calculatePercentage(stats.selectedProblem, stats.total),
+    [stats.selectedProblem, stats.total]
+  );
+
+  const filteredActiveCount = useMemo(
+    () => filteredTeams.filter((team) => team.status === "Active").length,
+    [filteredTeams]
+  );
+
+  const filteredIncompleteCount = useMemo(
+    () => filteredTeams.filter((team) => team.status === "Incomplete").length,
+    [filteredTeams]
+  );
+
+  const hasActiveFilters =
+    searchTerm.trim().length > 0 || statusFilter !== "All";
 
   const handleStatusUpdate = async (team: Team, nextStatus: TeamStatus) => {
     try {
@@ -592,40 +619,80 @@ export default function AdminTeamsPage() {
   return (
     <>
       <section className="space-y-6">
-        <div className="overflow-hidden rounded-[32px] bg-gradient-to-r from-[#A01C33] via-[#8e182e] to-[#751123] p-8 text-white shadow-[0_22px_60px_rgba(160,28,51,0.28)] lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.45fr_0.9fr] lg:items-center">
+        <div className="overflow-hidden rounded-[34px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfc_0%,#fff4f2_48%,#f8fafc_100%)] p-8 shadow-[0_24px_60px_rgba(74,36,48,0.08)] lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1.35fr_0.95fr] lg:items-start">
             <div>
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
-                Team Management • Admin Control
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white/85 px-4 py-2 text-sm font-semibold text-[#9a6773]">
+                <Sparkles className="h-4 w-4 text-[#A01C33]" />
+                Team Operations
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                Manage team formation, readiness, and submission alignment.
+              <h1 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-tight text-[#22171c] sm:text-4xl">
+                Supervise team health, formation quality, and problem selection from one cleaner admin workspace.
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                Review real team data, monitor member completeness, and control
-                team eligibility with a cleaner admin workflow.
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-[#6f5b62] sm:text-base">
+                Review real team records, monitor member completeness, and keep eligibility and challenge alignment easy to understand at a glance.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  Active teams: <span className="text-[#A01C33]">{loading ? "..." : stats.active}</span>
+                </div>
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  Problem selected: <span className="text-[#A01C33]">{loading ? "..." : stats.selectedProblem}</span>
+                </div>
+                <div className="rounded-full border border-[#ead7de] bg-white px-4 py-2 text-sm font-semibold text-[#3B3C3E]">
+                  In current view: <span className="text-[#A01C33]">{loading ? "..." : filteredTeams.length}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Filtered Result</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">
-                  {loading ? "..." : filteredTeams.length}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Teams visible after applying your current filters.
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[#eadfe3] bg-white/88 p-6 shadow-sm">
+                <p className="text-sm font-medium text-[#9a6773]">Team Readiness</p>
+                <div className="mt-2 flex items-center justify-between gap-4">
+                  <h3 className="text-3xl font-black text-[#22171c]">
+                    {loading ? "..." : `${activeRate}%`}
+                  </h3>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                    <Users className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                  {loading
+                    ? "Loading team readiness..."
+                    : `${stats.active} of ${stats.total} teams are currently marked active.`}
                 </p>
+
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#f3e8ec]">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#a01c33_0%,#d27b8d_100%)] transition-all"
+                    style={{ width: `${Math.min(activeRate, 100)}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white/80">Admin Scope</p>
-                <h3 className="mt-2 text-2xl font-bold text-white">Teams + Status</h3>
-                <p className="mt-2 text-sm leading-6 text-white/75">
-                  Clean overview of participants, problems, and team health.
-                </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#9a6773]">Problem Selection</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                    {loading ? "..." : `${problemSelectionRate}%`}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                    Teams that already have a problem statement attached.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-[#eadfe3] bg-white/88 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-[#9a6773]">Incomplete Queue</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#22171c]">
+                    {loading ? "..." : stats.incomplete}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6f5b62]">
+                    Team records that still need organizer attention.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -645,6 +712,9 @@ export default function AdminTeamsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.total}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  All team records currently tracked by the platform.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
                 <Users className="h-5 w-5" />
@@ -659,6 +729,9 @@ export default function AdminTeamsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.active}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Team records currently marked ready and active.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
                 <CheckCircle2 className="h-5 w-5" />
@@ -673,6 +746,9 @@ export default function AdminTeamsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.incomplete}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Teams missing readiness, completion, or selection signals.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <UserRoundPlus className="h-5 w-5" />
@@ -687,6 +763,9 @@ export default function AdminTeamsPage() {
                 <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
                   {loading ? "..." : stats.blocked}
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Teams restricted from progressing through the event.
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700">
                 <XCircle className="h-5 w-5" />
@@ -695,13 +774,16 @@ export default function AdminTeamsPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-medium text-[#A01C33]">Team Records</p>
               <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                Search and manage teams
+                Search, filter, and manage team operations
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Focus on incomplete and blocked teams first, then verify leader ownership, member count, and problem linkage from the same surface.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -729,15 +811,45 @@ export default function AdminTeamsPage() {
                   <option value="Blocked">Blocked</option>
                 </select>
               </div>
+
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("All");
+                  }}
+                  className="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+                >
+                  Clear Filters
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#fcfcfd] px-4 py-3 text-sm font-medium text-gray-600">
-            Showing{" "}
-            <span className="font-bold text-[#3B3C3E]">
-              {loading ? "..." : filteredTeams.length}
-            </span>{" "}
-            team records
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.35fr_0.95fr]">
+            <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-5 py-4 text-sm text-[#6f5b62]">
+              Showing{" "}
+              <span className="font-bold text-[#2e1f25]">
+                {loading ? "..." : filteredTeams.length}
+              </span>{" "}
+              team records in the current view.{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredActiveCount}
+              </span>{" "}
+              are active and{" "}
+              <span className="font-semibold text-[#A01C33]">
+                {loading ? "..." : filteredIncompleteCount}
+              </span>{" "}
+              still need readiness work.
+            </div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] px-5 py-4 text-sm text-gray-500">
+              <span className="font-semibold text-[#3B3C3E]">
+                {loading ? "..." : stats.selectedProblem}
+              </span>{" "}
+              teams have already linked a problem statement to their record.
+            </div>
           </div>
 
           <div className="mt-6 hidden xl:block">
@@ -760,10 +872,12 @@ export default function AdminTeamsPage() {
       {selectedTeam ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-3xl rounded-[30px] border border-white/50 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-            <div className="border-b border-gray-200 px-6 py-5 sm:px-7">
+            <div className="border-b border-gray-200 bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] px-6 py-5 sm:px-7">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#A01C33]">Team details</p>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[#ead7de] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#9a6773]">
+                    Team Overview
+                  </div>
                   <h3 className="mt-1 truncate text-2xl font-bold text-[#3B3C3E]">
                     {selectedTeam.teamName}
                   </h3>
@@ -871,4 +985,9 @@ export default function AdminTeamsPage() {
       ) : null}
     </>
   );
+}
+
+function calculatePercentage(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
 }

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
+import { recordAdminAuditLog } from "@/lib/admin/audit";
 import Submission from "@/models/Submission";
 import "@/models/Team";
 import "@/models/User";
@@ -247,6 +248,7 @@ export async function PATCH(
       );
     }
 
+    const previousStatus = submission.status;
     submission.status = nextStatus;
 
     if (nextStatus === "draft") {
@@ -258,6 +260,18 @@ export async function PATCH(
     await submission.save();
 
     const updatedSubmission = await getSubmissionById(id);
+
+    await recordAdminAuditLog({
+      action: "update_submission_status",
+      adminId: admin.userId,
+      targetType: "submission",
+      targetId: id,
+      targetLabel: updatedSubmission?.projectTitle || submission.projectTitle || "Submission",
+      details: {
+        previousStatus,
+        nextStatus,
+      },
+    });
 
     return NextResponse.json({
       success: true,

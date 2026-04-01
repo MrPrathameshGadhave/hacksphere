@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Settings, UserCircle2, ChevronDown } from "lucide-react";
+import { LogOut, UserCircle2, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -115,21 +115,8 @@ export default function ProfileDropdown({
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#A01C33]/10 text-[#A01C33]">
                 <UserCircle2 className="h-5 w-5" />
               </span>
-              My Profile
+              Profile & Access
             </Link>
-
-            <button
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:bg-[#f8f8f9] hover:text-[#A01C33]"
-              onClick={() => {
-                setOpen(false);
-                alert("Settings UI can be added next.");
-              }}
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#A01C33]/10 text-[#A01C33]">
-                <Settings className="h-5 w-5" />
-              </span>
-              Settings
-            </button>
 
             <button
               onClick={handleLogout}

@@ -5,59 +5,9 @@ import { verifyToken } from "@/lib/auth";
 import Team from "@/models/Team";
 import Submission from "@/models/Submission";
 import { isSubmissionDeadlinePassed } from "@/lib/hackathon";
+import { submissionUpdateSchema } from "@/lib/validations/submission";
 import "@/models/User";
 import "@/models/ProblemStatement";
-
-function normalizeText(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeTechStack(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function validateFinalSubmission(input: {
-  projectTitle: string;
-  description: string;
-  githubLink: string;
-  demoLink: string;
-  techStack: string[];
-}) {
-  if (input.projectTitle.length < 3) {
-    return "Project title is required";
-  }
-
-  if (input.description.length < 20) {
-    return "Project description must be at least 20 characters";
-  }
-
-  if (!input.githubLink) {
-    return "GitHub repository link is required";
-  }
-
-  if (!input.demoLink) {
-    return "Demo link is required";
-  }
-
-  if (input.techStack.length === 0) {
-    return "Tech stack is required";
-  }
-
-  return null;
-}
 
 async function getLeaderTeam(userId: string) {
   return Team.findOne({ leader: userId })
@@ -199,36 +149,30 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const validatedFields = submissionUpdateSchema.safeParse(body);
 
-    const projectTitle = normalizeText(body?.projectTitle);
-    const description = normalizeText(body?.description);
-    const githubLink = normalizeText(body?.githubLink);
-    const demoLink = normalizeText(body?.demoLink);
-    const pptLink = normalizeText(body?.pptLink);
-    const videoLink = normalizeText(body?.videoLink);
-    const techStack = normalizeTechStack(body?.techStack);
-    const nextStatus: "draft" | "submitted" =
-      body?.status === "submitted" ? "submitted" : "draft";
-
-    if (nextStatus === "submitted") {
-      const validationMessage = validateFinalSubmission({
-        projectTitle,
-        description,
-        githubLink,
-        demoLink,
-        techStack,
-      });
-
-      if (validationMessage) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: validationMessage,
-          },
-          { status: 400 }
-        );
-      }
+    if (!validatedFields.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation failed",
+          errors: validatedFields.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
     }
+
+    const {
+      projectTitle,
+      description,
+      githubLink,
+      demoLink,
+      pptLink,
+      videoLink,
+      techStack,
+      images,
+      status: nextStatus,
+    } = validatedFields.data;
 
     submission.projectTitle = projectTitle;
     submission.description = description;
@@ -237,6 +181,7 @@ export async function PATCH(
     submission.pptLink = pptLink;
     submission.videoLink = videoLink;
     submission.techStack = techStack;
+    submission.images = images;
     submission.status = nextStatus;
     submission.submittedAt =
       nextStatus === "submitted"

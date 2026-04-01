@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
+import { recordAdminAuditLog } from "@/lib/admin/audit";
 
 import "@/models/ProblemStatement";
 import "@/models/User";
@@ -288,7 +289,7 @@ export async function POST(
     const judge = await User.findOne({
       _id: id,
       role: "judge",
-    }).select("_id");
+    }).select("_id name email");
 
     if (!judge) {
       return NextResponse.json({ message: "Judge not found." }, { status: 404 });
@@ -356,6 +357,18 @@ export async function POST(
       }))
     );
 
+    await recordAdminAuditLog({
+      action: "assign_judge_submissions",
+      adminId: currentUser.userId,
+      targetType: "judge",
+      targetId: id,
+      targetLabel: judge.name || judge.email || "Judge",
+      details: {
+        submissionIds: toCreate,
+        createdCount: toCreate.length,
+      },
+    });
+
     return NextResponse.json({
       message: "Submissions assigned successfully.",
       createdCount: toCreate.length,
@@ -422,6 +435,17 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    await recordAdminAuditLog({
+      action: "remove_judge_submission_assignment",
+      adminId: currentUser.userId,
+      targetType: "judge",
+      targetId: id,
+      targetLabel: id,
+      details: {
+        submissionId,
+      },
+    });
 
     return NextResponse.json({
       message: "Assignment removed successfully.",

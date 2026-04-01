@@ -4,16 +4,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
   ArrowRight,
   Bell,
   FileCode2,
+  Flag,
   FolderKanban,
   Lightbulb,
+  Medal,
+  Rocket,
   Trophy,
   Users,
   ClipboardList,
   CalendarClock,
-  Sparkles,
+  ShieldCheck,
+  Target,
 } from "lucide-react";
 
 type BasicUser = {
@@ -121,32 +126,36 @@ type LeaderboardResponse = {
 
 const quickActions = [
   {
-    title: "Create or Manage Team",
+    title: "Lead The Team",
     description:
-      "Start a new team, invite members, and manage your participation.",
+      "Handle invites, confirm membership, and keep your build squad synchronized.",
     href: "/participant/my-team",
     icon: Users,
+    accent: "from-[#A01C33] via-[#8d1730] to-[#771326]",
   },
   {
-    title: "Explore Problem Statements",
+    title: "Select The Right Challenge",
     description:
-      "Browse challenges and pick the best problem for your team.",
+      "Compare active problem statements and lock in the one your team can win with.",
     href: "/participant/problems",
     icon: Lightbulb,
+    accent: "from-[#132238] via-[#18314f] to-[#1d3f68]",
   },
   {
-    title: "Submit Your Project",
+    title: "Ship The Submission",
     description:
-      "Upload your project details, GitHub link, demo, and tech stack.",
+      "Manage project links, screenshots, and your final delivery before the deadline.",
     href: "/participant/submission",
     icon: FolderKanban,
+    accent: "from-[#12624b] via-[#19715a] to-[#20806a]",
   },
   {
-    title: "Check Announcements",
+    title: "Track Event Signals",
     description:
-      "Stay updated with notices, deadlines, and event instructions.",
+      "Stay ahead of changes with organizer announcements, updates, and published results.",
     href: "/participant/announcements",
     icon: Bell,
+    accent: "from-[#6a4a14] via-[#7b5818] to-[#8f661d]",
   },
 ];
 
@@ -203,6 +212,41 @@ function formatRelativeTime(dateString?: string) {
 function formatScore(value?: number) {
   const score = Number(value || 0);
   return Number.isInteger(score) ? String(score) : score.toFixed(1);
+}
+
+function formatRank(rank?: number | null) {
+  if (!rank) return "--";
+  return `#${String(rank).padStart(2, "0")}`;
+}
+
+function getTeamStatusLabel(team: TeamData | null) {
+  if (!team) return "Not Joined";
+  if (team.status === "disqualified") return "Restricted";
+  if (team.status === "pending") return "Pending";
+  return "Active";
+}
+
+function getSubmissionStatusLabel(submission: SubmissionData | null) {
+  if (!submission) return "No Draft";
+  if (submission.status === "locked") return "Locked";
+  if (submission.status === "submitted") return "Submitted";
+  return "Draft";
+}
+
+function getRankTone(rank: number) {
+  if (rank === 1) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  if (rank === 2) {
+    return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+
+  if (rank === 3) {
+    return "border-orange-200 bg-orange-50 text-orange-700";
+  }
+
+  return "border-gray-200 bg-[#fcfcfd] text-[#3B3C3E]";
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -356,44 +400,38 @@ export default function ParticipantDashboardPage() {
     () => [
       {
         title: "Team Status",
-        value: !team
-          ? "Not Joined"
-          : team.status === "disqualified"
-          ? "Restricted"
-          : team.status === "pending"
-          ? "Pending"
-          : "Active",
+        value: getTeamStatusLabel(team),
         subtext: !team
-          ? "Create or join a team to continue"
+          ? "Create or join a team to unlock the workflow."
           : `${team.teamName}${
-              hasUnapprovedParticipants ? " • Approval pending" : ""
+              hasUnapprovedParticipants ? " pending admin approval" : ""
             }`,
         icon: Users,
       },
       {
-        title: "Problem Selected",
-        value: team?.problemStatement ? "1" : "0",
+        title: "Problem Selection",
+        value: team?.problemStatement ? "Locked In" : "Open",
         subtext: team?.problemStatement
           ? team.problemStatement.title
-          : "No problem statement selected yet",
+          : "No problem statement selected yet.",
         icon: Lightbulb,
       },
       {
         title: "Submission Status",
-        value: submission ? toDisplayText(submission.status) : "Draft",
-        subtext: submission?.projectTitle || "Final project not submitted",
+        value: getSubmissionStatusLabel(submission),
+        subtext: submission?.projectTitle || "Project delivery not started yet.",
         icon: FolderKanban,
       },
       {
         title: "Leaderboard Rank",
         value:
           leaderboardPublished && currentTeamRank
-            ? `#${String(currentTeamRank).padStart(2, "0")}`
+            ? formatRank(currentTeamRank)
             : "--",
         subtext:
           leaderboardPublished && currentTeamRank
-            ? `${team?.teamName || "Your team"} is on the board`
-            : "Will appear after publishing",
+            ? `${team?.teamName || "Your team"} is currently ranked.`
+            : "Ranking appears after results are published.",
         icon: Trophy,
       },
     ],
@@ -481,11 +519,11 @@ export default function ParticipantDashboardPage() {
   }, [team, submission, hasUnapprovedParticipants]);
 
   const firstName = user?.name?.split(" ")[0] || "Participant";
-  const selectedProblemTitle = team?.problemStatement?.title || "Not selected";
-  const projectTitle = submission?.projectTitle?.trim() || "Not added yet";
+  const selectedProblemTitle = team?.problemStatement?.title || "Not selected yet";
+  const projectTitle = submission?.projectTitle?.trim() || "Untitled draft";
 
   const platformStatus = !team
-    ? "Ready to Build"
+    ? "Ready To Build"
     : team.status === "disqualified"
     ? "Team Restricted"
     : hasUnapprovedParticipants
@@ -495,100 +533,288 @@ export default function ParticipantDashboardPage() {
       ? "Submission Ready"
       : submission.status === "locked"
       ? "Submission Locked"
-      : "In Progress"
-    : "In Progress";
+      : "Build In Progress"
+    : "Build In Progress";
+
+  const currentProjectHref = submission
+    ? `/participant/projects/${submission._id}`
+    : "/participant/submission";
+  const highlightAnnouncement = announcements[0] || null;
+  const completionScore =
+    [
+      Boolean(team) && team?.status !== "disqualified",
+      Boolean(team?.problemStatement),
+      Boolean(submission),
+      submission?.status === "submitted" || submission?.status === "locked",
+    ].filter(Boolean).length * 25;
+  const workflowStages = [
+    {
+      label: "Team",
+      description: team ? team.teamName : "Create or join your team",
+      complete: Boolean(team) && team?.status !== "disqualified",
+      active: !team,
+    },
+    {
+      label: "Challenge",
+      description: team?.problemStatement?.title || "Select a problem statement",
+      complete: Boolean(team?.problemStatement),
+      active:
+        Boolean(team) &&
+        team?.status !== "disqualified" &&
+        !hasUnapprovedParticipants &&
+        !team?.problemStatement,
+    },
+    {
+      label: "Build",
+      description: submission
+        ? getSubmissionStatusLabel(submission)
+        : "Start your project draft",
+      complete: Boolean(submission),
+      active:
+        Boolean(team?.problemStatement) &&
+        team?.status !== "disqualified" &&
+        !submission,
+    },
+    {
+      label: "Finalize",
+      description:
+        submission?.status === "submitted" || submission?.status === "locked"
+          ? "Ready for judging"
+          : "Submit the final delivery",
+      complete:
+        submission?.status === "submitted" || submission?.status === "locked",
+      active: Boolean(submission) && submission?.status === "draft",
+    },
+  ];
+  const spotlightCards = [
+    {
+      title: "Team",
+      value: team?.teamName || "No team yet",
+      meta: team
+        ? `${team.members.length + 1} / ${team.maxSize} members configured`
+        : "Set up your collaboration unit",
+      icon: Users,
+    },
+    {
+      title: "Problem",
+      value: selectedProblemTitle,
+      meta: team?.problemStatement
+        ? "Challenge is already locked in"
+        : "No challenge selected yet",
+      icon: Target,
+    },
+    {
+      title: "Project",
+      value: submission?.projectTitle || "Draft not started",
+      meta: submission
+        ? `Current status: ${getSubmissionStatusLabel(submission)}`
+        : "Open the submission studio to begin",
+      icon: FileCode2,
+    },
+    {
+      title: "Rank",
+      value:
+        leaderboardPublished && currentTeamRank
+          ? formatRank(currentTeamRank)
+          : "Pending",
+      meta: leaderboardPublished
+        ? "Results are published"
+        : "Ranking unlocks after publishing",
+      icon: Medal,
+    },
+  ];
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm">
           {error}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[30px] bg-gradient-to-r from-[#A01C33] via-[#92192f] to-[#7d1427] p-8 text-white shadow-[0_20px_60px_rgba(160,28,51,0.28)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr] lg:items-center">
+      <div className="animate-fade-in-up relative overflow-hidden rounded-[36px] border border-white/70 bg-[linear-gradient(135deg,#fffdf8_0%,#fff6f8_40%,#f6f9fc_100%)] px-6 py-7 text-[#1f2937] shadow-[0_28px_80px_rgba(15,23,42,0.08)] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+        <div className="animate-spotlight absolute left-[-8%] top-[-18%] h-72 w-72 rounded-full bg-[#A01C33]/12 blur-3xl" />
+        <div className="animate-spotlight absolute right-[-6%] top-[8%] h-72 w-72 rounded-full bg-[#d4a857]/16 blur-3xl" />
+        <div className="animate-float-soft absolute bottom-[-18%] left-[38%] h-64 w-64 rounded-full bg-[#295587]/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(160,28,51,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(160,28,51,0.05)_1px,transparent_1px)] bg-[size:46px_46px] opacity-[0.32]" />
+
+        <div className="relative grid gap-8 xl:grid-cols-[1.25fr_0.95fr] xl:items-start">
           <div>
-            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-3 text-[0px]">
               Powered by HackSphere • Organized by TechTitans
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#A01C33]/10 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#A01C33] backdrop-blur-sm">
+                <Rocket className="h-4 w-4" />
+                Participant Mission Control
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#1f2937]/10 bg-[#1f2937]/[0.04] px-4 py-2 text-sm font-medium text-[#1f2937]/75">
+                <ShieldCheck className="h-4 w-4 text-[#A01C33]" />
+                {platformStatus}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#d4a857]/20 bg-[#d4a857]/10 px-4 py-2 text-sm font-medium text-[#7b5818]">
+                <CalendarClock className="h-4 w-4" />
+                48 Hour Build Window
+              </span>
             </div>
 
             {loading ? (
-              <div className="mt-5">
-                <SkeletonBlock className="h-10 w-64 bg-white/20" />
-                <SkeletonBlock className="mt-4 h-4 w-full max-w-2xl bg-white/15" />
-                <SkeletonBlock className="mt-2 h-4 w-full max-w-xl bg-white/15" />
+              <div className="mt-6">
+                <SkeletonBlock className="h-12 w-72 bg-[#e8eaee]" />
+                <SkeletonBlock className="mt-4 h-4 w-full max-w-2xl bg-[#eceff3]" />
+                <SkeletonBlock className="mt-2 h-4 w-full max-w-xl bg-[#eceff3]" />
               </div>
             ) : (
               <>
-                <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">
-                  Welcome back, {firstName} 👋
+                <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight text-[#1f2937] sm:text-5xl">
+                  Build like a serious team, deliver like a world-class product.
                 </h1>
 
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 sm:text-base">
-                  Manage your team, track your project progress, explore problem
-                  statements, and stay updated with important event announcements —
-                  all from one participant workspace.
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-[#4b5563] sm:text-base">
+                  Welcome back, {firstName}. This workspace keeps your team,
+                  challenge, delivery status, and competition signals aligned so you
+                  always know the smartest next move.
                 </p>
               </>
             )}
 
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {workflowStages.map((stage, index) => (
+                <div
+                  key={stage.label}
+                  className={`rounded-[24px] border p-4 backdrop-blur-sm transition ${
+                    stage.complete
+                      ? "border-emerald-200 bg-emerald-50/90"
+                      : stage.active
+                      ? "border-[#A01C33]/15 bg-white/90"
+                      : "border-white/70 bg-white/72"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#6b7280]">
+                      Step {index + 1}
+                    </p>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                        stage.complete
+                          ? "bg-emerald-100 text-emerald-700"
+                          : stage.active
+                          ? "bg-[#A01C33]/10 text-[#A01C33]"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {stage.complete ? "Done" : stage.active ? "Live" : "Next"}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-[#1f2937]">
+                    {stage.label}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#5b6472]">
+                    {stage.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/participant/my-team"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#A01C33] transition hover:bg-white/90"
+                href={nextStep.href}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c]"
               >
-                Manage Team
+                {nextStep.linkText}
                 <ArrowRight className="h-4 w-4" />
               </Link>
 
               <Link
-                href="/participant/problems"
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                href="/participant/submission"
+                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[#1f2937] transition hover:border-[#A01C33] hover:text-[#A01C33]"
               >
-                Explore Problems
+                Open Submission Studio
+              </Link>
+
+              <Link
+                href="/participant/leaderboard"
+                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-transparent px-5 py-3 text-sm font-semibold text-[#5b6472] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+              >
+                Competition Standings
               </Link>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
-                  <CalendarClock className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/80">
-                    Hackathon Window
-                  </p>
-                  <h3 className="text-lg font-bold text-white">48 Hours</h3>
-                </div>
-              </div>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {loading
+              ? Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[26px] border border-white/70 bg-white/78 p-5 backdrop-blur-sm"
+                  >
+                    <SkeletonBlock className="h-5 w-24 bg-[#e8eaee]" />
+                    <SkeletonBlock className="mt-4 h-8 w-40 bg-[#e8eaee]" />
+                    <SkeletonBlock className="mt-2 h-4 w-full bg-[#eceff3]" />
+                  </div>
+                ))
+              : spotlightCards.map((card) => {
+                  const Icon = card.icon;
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
+                  return (
+                    <div
+                      key={card.title}
+                      className="rounded-[26px] border border-white/70 bg-white/78 p-5 backdrop-blur-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-[#6b7280]">
+                          {card.title}
+                        </p>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                      </div>
+                      <h3 className="mt-4 text-xl font-bold text-[#1f2937]">
+                        {card.value}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-[#5b6472]">
+                        {card.meta}
+                      </p>
+                    </div>
+                  );
+                })}
+
+            <div className="rounded-[26px] border border-white/70 bg-white/78 p-5 backdrop-blur-sm sm:col-span-2">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium text-white/80">
-                    Platform Status
-                  </p>
-                  <h3 className="text-lg font-bold text-white">{platformStatus}</h3>
+                  <p className="text-sm font-medium text-[#6b7280]">Latest Signal</p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#1f2937]">
+                    {loading
+                      ? "Loading updates..."
+                      : highlightAnnouncement?.title || "No announcements yet"}
+                  </h3>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                  <Activity className="h-5 w-5" />
                 </div>
               </div>
+              <p className="mt-3 text-sm leading-7 text-[#5b6472]">
+                {loading
+                  ? "Checking participant update stream."
+                  : highlightAnnouncement?.message ||
+                    "Announcements from organizers will appear here as your live event briefing feed."}
+              </p>
+              <Link
+                href="/participant/announcements"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#A01C33]"
+              >
+                Open announcement center
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {loading
           ? Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm"
+                className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="w-full">
@@ -607,15 +833,26 @@ export default function ParticipantDashboardPage() {
               return (
                 <div
                   key={item.title}
-                  className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-[28px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm"
                 >
+                  <div
+                    className={`h-1.5 w-full rounded-full ${
+                      item.title === "Team Status"
+                        ? "bg-gradient-to-r from-[#A01C33] to-[#7d1427]"
+                        : item.title === "Problem Selection"
+                        ? "bg-gradient-to-r from-[#18314f] to-[#1d426c]"
+                        : item.title === "Submission Status"
+                        ? "bg-gradient-to-r from-[#19715a] to-[#20806a]"
+                        : "bg-gradient-to-r from-[#7b5818] to-[#a67a22]"
+                    }`}
+                  />
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-gray-500">{item.title}</p>
-                      <h3 className="mt-3 text-2xl font-bold text-[#3B3C3E]">
+                      <h3 className="mt-4 text-2xl font-bold text-[#1f2937]">
                         {item.value}
                       </h3>
-                      <p className="mt-2 text-sm leading-6 text-gray-500">
+                      <p className="mt-3 text-sm leading-6 text-gray-500">
                         {item.subtext}
                       </p>
                     </div>
@@ -629,21 +866,21 @@ export default function ParticipantDashboardPage() {
             })}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
+        <div className="rounded-[32px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-7">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-[#A01C33]">Quick Actions</p>
-              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                Continue your workflow
+              <p className="text-sm font-medium text-[#A01C33]">Action Deck</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                Move the workspace forward
               </h2>
             </div>
 
             <Link
-              href="/participant/problems"
-              className="hidden text-sm font-semibold text-[#A01C33] hover:underline sm:inline-block"
+              href="/participant/profile"
+              className="hidden rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] sm:inline-flex"
             >
-              View all
+              View Profile
             </Link>
           </div>
 
@@ -655,22 +892,30 @@ export default function ParticipantDashboardPage() {
                 <Link
                   key={item.title}
                   href={item.href}
-                  className="group rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 transition hover:border-[#A01C33]/25 hover:bg-white hover:shadow-sm"
+                  className="group relative overflow-hidden rounded-[28px] border border-gray-200 bg-[#fcfcfd] p-5 transition hover:-translate-y-0.5 hover:border-[#A01C33]/20 hover:shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
                 >
+                  <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${item.accent}`} />
+
+                  {item.href === nextStep.href ? (
+                    <span className="inline-flex rounded-full border border-[#A01C33]/15 bg-[#A01C33]/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A01C33]">
+                      Recommended now
+                    </span>
+                  ) : null}
+
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33] transition group-hover:bg-[#A01C33] group-hover:text-white">
                     <Icon className="h-5 w-5" />
                   </div>
 
-                  <h3 className="mt-4 text-lg font-bold text-[#3B3C3E]">
+                  <h3 className="mt-5 text-xl font-bold text-[#1f2937]">
                     {item.title}
                   </h3>
 
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                  <p className="mt-3 text-sm leading-7 text-gray-500">
                     {item.description}
                   </p>
 
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#A01C33]">
-                    Open
+                  <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#A01C33]">
+                    Open workspace
                     <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                   </div>
                 </Link>
@@ -679,78 +924,122 @@ export default function ParticipantDashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <p className="text-sm font-medium text-[#A01C33]">Submission Overview</p>
-          <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-            Current project status
-          </h2>
-
-          <div className="mt-6 space-y-4">
-            <div className="rounded-[22px] border border-gray-200 bg-[#fafafa] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Project Title</p>
-                  <h3 className="mt-1 text-lg font-bold text-[#3B3C3E]">
-                    {loading ? "Loading..." : projectTitle}
-                  </h3>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                  <FileCode2 className="h-5 w-5" />
-                </div>
+        <div className="space-y-6">
+          <div className="overflow-hidden rounded-[32px] border border-[#A01C33]/10 bg-[linear-gradient(135deg,#fff9fb_0%,#ffffff_46%,#fff4f7_100%)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#A01C33]">
+                  Recommended Next Move
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                  {nextStep.title}
+                </h2>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <Flag className="h-5 w-5" />
               </div>
             </div>
 
-            <div className="rounded-[22px] border border-gray-200 bg-[#fafafa] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Selected Problem</p>
-                  <h3 className="mt-1 text-lg font-bold text-[#3B3C3E]">
-                    {loading ? "Loading..." : selectedProblemTitle}
-                  </h3>
-                </div>
+            <p className="mt-4 text-sm leading-7 text-gray-600">
+              {nextStep.description}
+            </p>
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
-                  <ClipboardList className="h-5 w-5" />
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {[
+                ["Team", getTeamStatusLabel(team)],
+                ["Problem", selectedProblemTitle],
+                ["Submission", getSubmissionStatusLabel(submission)],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-[22px] border border-[#A01C33]/10 bg-white/80 p-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#A01C33]/70">
+                    {label}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-[#1f2937]">
+                    {value}
+                  </p>
                 </div>
+              ))}
+            </div>
+
+            <Link
+              href={nextStep.href}
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c]"
+            >
+              {nextStep.linkText}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="rounded-[32px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#A01C33]">Readiness Score</p>
+                <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                  {completionScore}% operational
+                </h2>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <Target className="h-5 w-5" />
               </div>
             </div>
 
-            <div className="rounded-[22px] border border-dashed border-[#A01C33]/25 bg-[#A01C33]/[0.03] p-5">
-              <p className="text-sm font-medium text-[#A01C33]">
-                {nextStep.title}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-[#3B3C3E]">
-                {nextStep.description}
-              </p>
+            <div className="mt-6 overflow-hidden rounded-full bg-[#eef1f5]">
+              <div
+                className="h-3 rounded-full bg-gradient-to-r from-[#A01C33] via-[#c4485b] to-[#dba753] transition-all duration-700"
+                style={{ width: `${completionScore}%` }}
+              />
+            </div>
 
-              <Link
-                href={nextStep.href}
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#A01C33]"
-              >
-                {nextStep.linkText}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+            <div className="mt-6 space-y-3">
+              {workflowStages.map((stage) => (
+                <div
+                  key={stage.label}
+                  className="flex items-start justify-between gap-4 rounded-[20px] border border-gray-200 bg-[#fcfcfd] px-4 py-4"
+                >
+                  <div>
+                    <h3 className="font-semibold text-[#1f2937]">
+                      {stage.label}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {stage.description}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                      stage.complete
+                        ? "bg-emerald-100 text-emerald-700"
+                        : stage.active
+                        ? "bg-[#A01C33]/10 text-[#A01C33]"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {stage.complete ? "Done" : stage.active ? "Current" : "Queued"}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-[32px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-7">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-[#A01C33]">
-                Recent Announcements
+                Announcement Stream
               </p>
-              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                Stay updated
+              <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                Organizer signals and decisions
               </h2>
             </div>
 
             <Link
               href="/participant/announcements"
-              className="text-sm font-semibold text-[#A01C33] hover:underline"
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
             >
               View all
             </Link>
@@ -761,10 +1050,10 @@ export default function ParticipantDashboardPage() {
               Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5"
+                  className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5"
                 >
                   <SkeletonBlock className="h-6 w-20 rounded-full" />
-                  <SkeletonBlock className="mt-3 h-5 w-2/3" />
+                  <SkeletonBlock className="mt-4 h-5 w-2/3" />
                   <SkeletonBlock className="mt-3 h-4 w-full" />
                   <SkeletonBlock className="mt-2 h-4 w-5/6" />
                 </div>
@@ -773,119 +1062,178 @@ export default function ParticipantDashboardPage() {
               announcements.map((item) => (
                 <div
                   key={item._id}
-                  className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-5"
+                  className="rounded-[24px] border border-gray-200 bg-[#fcfcfd] p-5 transition hover:border-[#A01C33]/18 hover:bg-white"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <span className="inline-flex rounded-full bg-[#A01C33]/10 px-3 py-1 text-xs font-semibold text-[#A01C33]">
+                      <span className="inline-flex rounded-full bg-[#A01C33]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#A01C33]">
                         {toDisplayText(item.category || "general")}
                       </span>
-                      <h3 className="mt-3 text-lg font-bold text-[#3B3C3E]">
+                      <h3 className="mt-4 text-lg font-bold text-[#1f2937]">
                         {item.title}
                       </h3>
-                      <p className="mt-2 text-sm leading-7 text-gray-500">
+                      <p className="mt-3 text-sm leading-7 text-gray-500">
                         {item.message}
                       </p>
                     </div>
 
-                    <span className="whitespace-nowrap text-xs font-medium text-gray-400">
+                    <span className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
                       {formatRelativeTime(item.createdAt)}
                     </span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="rounded-[22px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm text-gray-500">
-                No announcements available yet.
+              <div className="rounded-[24px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm leading-7 text-gray-500">
+                No organizer announcements are available yet.
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-[#A01C33]">
-                Leaderboard Snapshot
-              </p>
-              <h2 className="mt-1 text-2xl font-bold text-[#3B3C3E]">
-                Top teams
-              </h2>
+        <div className="space-y-6">
+          <div className="rounded-[32px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#A01C33]">
+                  Leaderboard Snapshot
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                  Competition pressure
+                </h2>
+              </div>
+
+              <Link
+                href="/participant/leaderboard"
+                className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+              >
+                Full board
+              </Link>
             </div>
 
-            <Link
-              href="/participant/leaderboard"
-              className="text-sm font-semibold text-[#A01C33] hover:underline"
-            >
-              Full board
-            </Link>
+            <div className="mt-6 space-y-3">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] px-4 py-4"
+                  >
+                    <SkeletonBlock className="h-5 w-24" />
+                    <SkeletonBlock className="mt-3 h-4 w-full" />
+                  </div>
+                ))
+              ) : !leaderboardPublished ? (
+                <div className="rounded-[22px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm leading-7 text-gray-500">
+                  The leaderboard is not published yet. Rankings will appear here once
+                  results go live.
+                </div>
+              ) : topTeams.length > 0 ? (
+                topTeams.map((item) => (
+                  <div
+                    key={item.teamId}
+                    className={`rounded-[22px] border px-4 py-4 ${getRankTone(item.rank)}`}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-sm font-bold shadow-sm">
+                          {String(item.rank).padStart(2, "0")}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{item.teamName}</h3>
+                          <p className="text-sm opacity-80">
+                            {item.reviewsCount} review{item.reviewsCount > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">
+                          Score
+                        </p>
+                        <p className="mt-1 text-lg font-bold">
+                          {formatScore(item.averageScore)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm leading-7 text-gray-500">
+                  Results are published, but the ranking data is still empty.
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-6 space-y-3">
-            {loading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between rounded-[20px] border border-gray-200 bg-[#fcfcfd] px-4 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <SkeletonBlock className="h-11 w-11 rounded-2xl" />
-                    <div>
-                      <SkeletonBlock className="h-4 w-28" />
-                      <SkeletonBlock className="mt-2 h-4 w-20" />
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <SkeletonBlock className="h-3 w-12" />
-                    <SkeletonBlock className="mt-2 h-5 w-14" />
-                  </div>
-                </div>
-              ))
-            ) : !leaderboardPublished ? (
-              <div className="rounded-[20px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm text-gray-500">
-                Leaderboard is not published yet. Rankings will appear here after
-                admin publishes the results.
+          <div className="rounded-[32px] border border-white/60 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#A01C33]">Project Brief</p>
+                <h2 className="mt-1 text-2xl font-bold text-[#1f2937]">
+                  Current delivery snapshot
+                </h2>
               </div>
-            ) : topTeams.length > 0 ? (
-              topTeams.map((item) => (
-                <div
-                  key={item.teamId}
-                  className="flex items-center justify-between rounded-[20px] border border-gray-200 bg-[#fcfcfd] px-4 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33] text-sm font-bold text-white">
-                      {String(item.rank).padStart(2, "0")}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[#3B3C3E]">{item.teamName}</h3>
-                      <p className="text-sm text-gray-500">
-                        {item.reviewsCount} review{item.reviewsCount > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                      Score
-                    </p>
-                    <p className="text-lg font-bold text-[#3B3C3E]">
-                      {formatScore(item.averageScore)}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[20px] border border-dashed border-gray-300 bg-[#fafafa] p-5 text-sm text-gray-500">
-                Leaderboard is published, but no ranking rows are available yet.
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                <ClipboardList className="h-5 w-5" />
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="mt-5 rounded-[22px] border border-dashed border-gray-300 bg-[#fafafa] p-4">
-            <p className="text-sm leading-7 text-gray-500">
-              Final rankings will depend on published judge evaluations and admin
-              approval.
-            </p>
+            <div className="mt-6 space-y-4">
+              {[
+                {
+                  label: "Project Title",
+                  value: loading ? "Loading..." : projectTitle,
+                  icon: FileCode2,
+                },
+                {
+                  label: "Selected Problem",
+                  value: loading ? "Loading..." : selectedProblemTitle,
+                  icon: Lightbulb,
+                },
+                {
+                  label: "Hackathon Window",
+                  value: "48 hour build cycle",
+                  icon: CalendarClock,
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <div
+                    key={item.label}
+                    className="rounded-[22px] border border-gray-200 bg-[#fcfcfd] p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#A01C33]/10 text-[#A01C33]">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">{item.label}</p>
+                        <p className="mt-1 text-sm font-semibold text-[#1f2937]">
+                          {item.value}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href={currentProjectHref}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#A01C33] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#89172c]"
+              >
+                View Project Brief
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/participant/submission"
+                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33]"
+              >
+                Open Submission Studio
+              </Link>
+            </div>
           </div>
         </div>
       </div>

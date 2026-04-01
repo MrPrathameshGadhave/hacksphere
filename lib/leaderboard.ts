@@ -81,6 +81,8 @@ export async function buildAdminLeaderboardData(): Promise<{
   stats: AdminLeaderboardStats;
   topThree: AdminLeaderboardRow[];
 }> {
+  // The leaderboard is intentionally derived on demand from the latest
+  // submitted evaluations so admins always review current ranking data.
   const submissions = (await Submission.find({
     status: { $in: ["submitted", "locked"] },
   })
@@ -232,6 +234,11 @@ export async function buildAdminLeaderboardData(): Promise<{
 
   const rows = [...unsortedRows]
     .sort((a, b) => {
+      // Ranking priority:
+      // 1. Teams with at least one submitted review
+      // 2. Higher average final score
+      // 3. Greater completed review count
+      // 4. Earlier submission time
       const aReviewed = a.reviewsCount > 0 ? 1 : 0;
       const bReviewed = b.reviewsCount > 0 ? 1 : 0;
 
