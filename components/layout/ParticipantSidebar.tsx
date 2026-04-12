@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const navItems = [
   {
@@ -224,7 +225,7 @@ export default function ParticipantSidebar({
       router.refresh();
     } catch (error) {
       console.error("Participant sidebar logout error:", error);
-      alert("Unable to logout right now. Please try again.");
+      toast.error("Unable to logout right now. Please try again.");
     } finally {
       setIsLoggingOut(false);
     }

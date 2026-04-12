@@ -8,6 +8,10 @@ import PublicHeader from "@/components/layout/PublicHeader";
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FloatingOrbs, ParticleAnimation, HexagonPattern, ComplexShapeAnimation, AnimatedDots } from '@/components/home/AnimatedSVGElements';
+import {
+  GuestOnly,
+  WorkspaceLink,
+} from "@/components/public/PublicAuthActions";
 
 // SVG Icons/Illustrations Components
 const GearIcon = () => (
@@ -238,12 +242,15 @@ export default function HackSphereLandingPage() {
               </p>
 
               <div className="flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-                <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95">
-                  <span className="flex items-center gap-2">
-                    Register Now
-                    <RocketIcon />
-                  </span>
-                </Link>
+                <GuestOnly>
+                  <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95">
+                    <span className="flex items-center gap-2">
+                      Register Now
+                      <RocketIcon />
+                    </span>
+                  </Link>
+                </GuestOnly>
+                <WorkspaceLink className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95" />
                 <Link href="/problem-statements" className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition-all duration-300 hover:border-[#A01C33] hover:text-[#A01C33] hover:shadow-md hover:-translate-y-0.5">
                   Problem Statements
                 </Link>
@@ -646,10 +653,13 @@ export default function HackSphereLandingPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-              <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95 flex items-center gap-2">
-                <RocketIcon />
-                Register
-              </Link>
+              <GuestOnly>
+                <Link href="/register" className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95 flex items-center gap-2">
+                  <RocketIcon />
+                  Register
+                </Link>
+              </GuestOnly>
+              <WorkspaceLink className="group rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#A01C33]/40 active:scale-95 flex items-center gap-2" />
               <Link href="/#about-hackathon" className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 hover:-translate-y-0.5">
                 Learn More
               </Link>

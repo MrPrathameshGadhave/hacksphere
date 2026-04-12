@@ -17,9 +17,11 @@ import {
   Target,
   Users,
   UserCog,
+  UserCircle2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const navItems = [
   {
@@ -71,6 +73,11 @@ const navItems = [
     label: "Leaderboard",
     href: "/admin/leaderboard",
     icon: Medal,
+  },
+  {
+    label: "Profile",
+    href: "/admin/profile",
+    icon: UserCircle2,
   },
 ];
 
@@ -242,7 +249,7 @@ export default function AdminSidebar({
       router.refresh();
     } catch (error) {
       console.error("Admin sidebar logout error:", error);
-      alert("Unable to logout right now. Please try again.");
+      toast.error("Unable to logout right now. Please try again.");
     } finally {
       setIsLoggingOut(false);
     }

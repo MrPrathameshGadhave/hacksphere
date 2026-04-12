@@ -43,11 +43,11 @@ function roundToOne(value: number) {
 }
 
 function formatDate(value?: string | Date | null) {
-  if (!value) return "—";
+  if (!value) return "-";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
 
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -205,8 +205,8 @@ export async function buildAdminLeaderboardData(): Promise<{
             ? "Completed"
             : "Pending"
           : reviewsCount > 0
-          ? "Completed"
-          : "Pending";
+            ? "Completed"
+            : "Pending";
 
       return {
         id: submissionId,
@@ -226,8 +226,8 @@ export async function buildAdminLeaderboardData(): Promise<{
         submittedAtRaw: submission?.submittedAt
           ? new Date(submission.submittedAt).toISOString()
           : submission?.createdAt
-          ? new Date(submission.createdAt).toISOString()
-          : null,
+            ? new Date(submission.createdAt).toISOString()
+            : null,
         scoreBreakdown,
       };
     });
@@ -260,7 +260,8 @@ export async function buildAdminLeaderboardData(): Promise<{
 
   const stats: AdminLeaderboardStats = {
     totalTeams: rows.length,
-    completedReviews: rows.filter((row) => row.reviewStatus === "Completed").length,
+    completedReviews: rows.filter((row) => row.reviewStatus === "Completed")
+      .length,
     highestScore: reviewedRows.length ? reviewedRows[0].finalScore : 0,
     averageScore: reviewedRows.length
       ? roundToOne(

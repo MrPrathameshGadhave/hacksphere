@@ -5,6 +5,10 @@ import PublicHeader from "@/components/layout/PublicHeader";
 import { getPublicHomeData } from "@/lib/public-home";
 import dpgulogo from "@/app/utils/dpgu.jpeg";
 import ttlogo from "@/app/utils/tt.jpeg";
+import {
+  GuestOnly,
+  WorkspaceLink,
+} from "@/components/public/PublicAuthActions";
 
 const steps = [
   "Register and create your account",
@@ -85,12 +89,15 @@ export default async function DynamicLandingPage() {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/register"
-                  className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5"
-                >
-                  Register Now
-                </Link>
+                <GuestOnly>
+                  <Link
+                    href="/register"
+                    className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5"
+                  >
+                    Register Now
+                  </Link>
+                </GuestOnly>
+                <WorkspaceLink className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#A01C33]/25 transition hover:-translate-y-0.5" />
                 <Link
                   href="/problem-statements"
                   className="rounded-full border border-[#D1D5DB] bg-white px-6 py-3.5 text-sm font-semibold text-[#3B3C3E] shadow-sm transition hover:border-[#A01C33] hover:text-[#A01C33]"
@@ -368,18 +375,23 @@ export default async function DynamicLandingPage() {
               track progress on the same system already powering the event.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="/register"
-                className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25"
-              >
-                Register
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm"
-              >
-                Login
-              </Link>
+              <GuestOnly>
+                <Link
+                  href="/register"
+                  className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25"
+                >
+                  Register
+                </Link>
+              </GuestOnly>
+              <GuestOnly>
+                <Link
+                  href="/login"
+                  className="rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm"
+                >
+                  Login
+                </Link>
+              </GuestOnly>
+              <WorkspaceLink className="rounded-full bg-[#A01C33] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#A01C33]/25" />
             </div>
           </div>
         </section>

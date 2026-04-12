@@ -65,6 +65,9 @@ function getRoleLabel(role?: string) {
 }
 
 function getWorkspaceTitle(pathname: string) {
+  if (pathname.startsWith("/participant/approval-pending")) {
+    return "Approval Pending";
+  }
   if (pathname.startsWith("/participant/my-team")) return "Team Workspace";
   if (pathname.startsWith("/participant/problems")) return "Problem Library";
   if (pathname.startsWith("/participant/submission")) return "Submission Studio";
@@ -123,7 +126,8 @@ export default function ParticipantTopbar({
   const profileRole = useMemo(() => getRoleLabel(user?.role), [user?.role]);
   const profileInitials = useMemo(() => getInitials(user?.name), [user?.name]);
   const workspaceTitle = useMemo(() => getWorkspaceTitle(pathname), [pathname]);
-  const approvalLabel = user?.isApproved === false ? "Approval Pending" : "Workspace Active";
+  const approvalLabel =
+    user?.isApproved === false ? "Approval Pending" : "Account Approved";
   const approvalTone =
     user?.isApproved === false
       ? "border-amber-200 bg-amber-50 text-amber-700"

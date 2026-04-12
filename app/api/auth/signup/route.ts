@@ -3,14 +3,19 @@ import bcrypt from "bcryptjs";
 
 import connectDB from "@/lib/db";
 import User from "@/models/User";
-import { signupSchema } from "@/lib/validations/auth";
+import SignupVerification from "@/models/SignupVerification";
+import { participantSignupSchema } from "@/lib/validations/auth";
+import {
+  hashVerificationValue,
+  PARTICIPANT_SIGNUP_VERIFICATION_PURPOSE,
+} from "@/lib/signup-verification";
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
     const body = await request.json();
-    const validatedFields = signupSchema.safeParse(body);
+    const validatedFields = participantSignupSchema.safeParse(body);
 
     if (!validatedFields.success) {
       return NextResponse.json(
@@ -23,7 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, college } = validatedFields.data;
+    const { name, email, password, college, verificationToken } =
+      validatedFields.data;
 
     const existingUser = await User.findOne({ email });
 
@@ -37,6 +43,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const signupVerification = await SignupVerification.findOne({
+      email,
+      purpose: PARTICIPANT_SIGNUP_VERIFICATION_PURPOSE,
+    });
+
+    if (
+      !signupVerification ||
+      !signupVerification.verifiedAt ||
+      !signupVerification.verifiedTokenHash ||
+      signupVerification.verifiedTokenHash !==
+        hashVerificationValue(verificationToken) ||
+      new Date(signupVerification.expiresAt).getTime() < Date.now()
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Please verify your email address with the code before creating your account",
+        },
+        { status: 403 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
@@ -46,6 +75,11 @@ export async function POST(request: NextRequest) {
       college: college || "",
       role: "participant",
       isApproved: false,
+    });
+
+    await SignupVerification.deleteMany({
+      email,
+      purpose: PARTICIPANT_SIGNUP_VERIFICATION_PURPOSE,
     });
 
     return NextResponse.json(

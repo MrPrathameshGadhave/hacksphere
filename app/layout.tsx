@@ -1,7 +1,17 @@
-import PublicHeader from "@/components/layout/PublicHeader";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { JetBrains_Mono, Manrope } from "next/font/google";
+
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "HackSphere",
@@ -15,10 +25,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        {/* <PublicHeader />  */}
-        
-        <main className="">
+      <body className={`${manrope.variable} ${jetbrainsMono.variable} antialiased`}>
+        <main>
           {children}
         </main>
 

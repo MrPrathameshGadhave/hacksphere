@@ -37,6 +37,25 @@ export const signupSchema = z.object({
   college: collegeSchema,
 });
 
+export const participantSignupSchema = signupSchema.extend({
+  verificationToken: z
+    .string()
+    .trim()
+    .min(1, "Email verification is required"),
+});
+
+export const signupEmailRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export const signupEmailCodeVerifySchema = z.object({
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter a valid 6-digit verification code"),
+});
+
 export const loginSchema = z.object({
   email: emailSchema,
 
@@ -76,6 +95,11 @@ export const adminSignupSchema = z.object({
 export type AdminSignupInput = z.infer<typeof adminSignupSchema>;
 export type JudgeSignupInput = z.infer<typeof judgeSignupSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
+export type ParticipantSignupInput = z.infer<typeof participantSignupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type SignupEmailRequestInput = z.infer<typeof signupEmailRequestSchema>;
+export type SignupEmailCodeVerifyInput = z.infer<
+  typeof signupEmailCodeVerifySchema
+>;

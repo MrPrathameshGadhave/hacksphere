@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LogOut, UserCircle2, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 type ProfileDropdownProps = {
   name: string;
@@ -56,7 +57,7 @@ export default function ProfileDropdown({
       router.refresh();
     } catch (error) {
       console.error("Logout failed:", error);
-      alert("Unable to logout right now. Please try again.");
+      toast.error("Unable to logout right now. Please try again.");
     } finally {
       setIsLoggingOut(false);
     }

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Mail,
+  MessageCircle,
   RefreshCcw,
   ShieldCheck,
   Sparkles,
@@ -42,6 +43,10 @@ function ApprovalPendingContent() {
   const [error, setError] = useState<string | null>(null);
 
   const redirectTarget = String(searchParams.get("redirect") || "").trim();
+  const joinedFromSignup = searchParams.get("fromSignup") === "1";
+  const whatsappGroupUrl =
+    process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL?.trim() || "";
+  const showWhatsappCard = joinedFromSignup || Boolean(whatsappGroupUrl);
 
   useEffect(() => {
     const checkApprovalStatus = async () => {
@@ -236,6 +241,52 @@ function ApprovalPendingContent() {
           </div>
 
           <div className="space-y-6">
+            {showWhatsappCard ? (
+              <div className="rounded-[30px] border border-[#eadfe3] bg-white/90 p-6 shadow-[0_18px_55px_rgba(74,36,48,0.08)] sm:p-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9f6b77]">
+                  Community
+                </p>
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#26161d]">
+                  Join the participant WhatsApp group
+                </h2>
+
+                <div className="mt-6 rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#25D366]/10 text-[#25D366]">
+                      <MessageCircle className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#2e1f25]">
+                        Stay connected while approval is pending
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-[#6f5b62]">
+                        Join the WhatsApp group to receive announcements,
+                        reminders, and organizer updates while your account is
+                        being reviewed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {whatsappGroupUrl ? (
+                  <a
+                    href={whatsappGroupUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1fb857]"
+                  >
+                    Join WhatsApp Group
+                  </a>
+                ) : (
+                  <div className="mt-5 rounded-[24px] border border-dashed border-[#d9b6c0] bg-[linear-gradient(135deg,rgba(160,28,51,0.04)_0%,rgba(255,255,255,0.9)_100%)] p-5 text-sm leading-7 text-[#6f5b62]">
+                    The WhatsApp invite link is not configured yet. Once the
+                    organizers add it, the join button will appear here
+                    automatically.
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             <div className="rounded-[30px] border border-[#eadfe3] bg-white/90 p-6 shadow-[0_18px_55px_rgba(74,36,48,0.08)] sm:p-7">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9f6b77]">
                 Support

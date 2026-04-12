@@ -2,6 +2,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import ttlogo from "../../app/utils/tt.jpeg";
+import {
+  GuestOnly,
+  WorkspaceLink,
+} from "@/components/public/PublicAuthActions";
 
 export default function Footer() {
   return (
@@ -55,12 +59,18 @@ export default function Footer() {
               >
                 TechTitans
               </Link>
-              <Link
-                href="/register"
+              <GuestOnly>
+                <Link
+                  href="/register"
+                  className="block hover:text-[#A01C33] transition-colors"
+                >
+                  Register
+                </Link>
+              </GuestOnly>
+              <WorkspaceLink
                 className="block hover:text-[#A01C33] transition-colors"
-              >
-                Register
-              </Link>
+                label="Open Workspace"
+              />
             </div>
           </div>
 

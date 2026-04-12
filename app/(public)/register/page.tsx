@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import {
   ArrowRight,
+  CheckCircle2,
   Code2,
   Eye,
   EyeOff,
@@ -15,7 +16,6 @@ import {
   Sparkles,
   User,
   Users,
-  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,6 +27,17 @@ type RegisterFormData = {
   confirmPassword: string;
   agreeToTerms: boolean;
 };
+
+type VerificationStatus =
+  | "idle"
+  | "sending"
+  | "sent"
+  | "verifying"
+  | "verified";
+
+function isValidEmail(value: string) {
+  return /\S+@\S+\.\S+/.test(value.trim());
+}
 
 function RegisterContent() {
   const router = useRouter();
@@ -40,6 +51,12 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [emailVerificationCode, setEmailVerificationCode] = useState("");
+  const [verificationStatus, setVerificationStatus] =
+    useState<VerificationStatus>("idle");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const [formData, setFormData] = useState<RegisterFormData>({
     name: "",
@@ -59,6 +76,16 @@ function RegisterContent() {
     }));
   }, [invitedEmail]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setResendCooldown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
   const passwordChecks = useMemo(
     () => ({
       minLength: formData.password.length >= 6,
@@ -72,25 +99,60 @@ function RegisterContent() {
     passwordChecks.minLength &&
     passwordChecks.hasLetter &&
     passwordChecks.hasNumber;
+  const normalizedEmail = formData.email.trim().toLowerCase();
+  const isInvitedEmail = Boolean(invitedEmail);
+  const isEmailVerified =
+    verificationStatus === "verified" &&
+    verifiedEmail.length > 0 &&
+    verifiedEmail === normalizedEmail &&
+    verificationToken.length > 0;
+  const showVerificationCodeInput =
+    verificationStatus === "sent" || verificationStatus === "verifying";
+  const createAccountDisabled = loading || !isEmailVerified;
 
   const getApprovalPendingPath = () => {
-    if (!redirectTarget) return "/participant/approval-pending";
-
     const params = new URLSearchParams();
-    params.set("redirect", redirectTarget);
+
+    if (redirectTarget) {
+      params.set("redirect", redirectTarget);
+    }
+
+    params.set("fromSignup", "1");
+
     return `/participant/approval-pending?${params.toString()}`;
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const resetVerificationState = () => {
+    setEmailVerificationCode("");
+    setVerificationStatus("idle");
+    setVerificationToken("");
+    setVerifiedEmail("");
+    setResendCooldown(0);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
 
-    if (type === "checkbox" && "checked" in e.target) {
+    if (type === "checkbox") {
       setFormData((prev) => ({
         ...prev,
-        [name]: (e.target as HTMLInputElement).checked,
+        [name]: e.target.checked,
       }));
+      return;
+    }
+
+    if (name === "email") {
+      const nextEmail = value.trim().toLowerCase();
+
+      setFormData((prev) => ({
+        ...prev,
+        email: value,
+      }));
+
+      if (nextEmail !== normalizedEmail) {
+        resetVerificationState();
+      }
+
       return;
     }
 
@@ -101,6 +163,11 @@ function RegisterContent() {
   };
 
   const validateForm = () => {
+    if (!isEmailVerified) {
+      toast.error("Verify your email before creating the account");
+      return false;
+    }
+
     if (!formData.name.trim()) {
       toast.error("Full name is required");
       return false;
@@ -108,16 +175,6 @@ function RegisterContent() {
 
     if (formData.name.trim().length < 2) {
       toast.error("Name must be at least 2 characters");
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      toast.error("Email is required");
-      return false;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      toast.error("Enter a valid email address");
       return false;
     }
 
@@ -156,6 +213,84 @@ function RegisterContent() {
     return true;
   };
 
+  const handleSendVerificationCode = async () => {
+    if (!normalizedEmail) {
+      toast.error("Email is required");
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+
+    try {
+      setVerificationStatus("sending");
+
+      const response = await axios.post("/api/auth/signup/send-code", {
+        email: normalizedEmail,
+      });
+
+      if (!response.data?.success) {
+        toast.error(response.data?.message || "Failed to send verification code");
+        setVerificationStatus("idle");
+        return;
+      }
+
+      setVerificationStatus("sent");
+      setEmailVerificationCode("");
+      setVerificationToken("");
+      setVerifiedEmail("");
+      setResendCooldown(response.data?.resendCooldownSeconds || 45);
+      toast.success(response.data?.message || "Verification code sent");
+    } catch (error: any) {
+      setVerificationStatus("idle");
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to send verification code. Please try again."
+      );
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+      toast.error("Enter a valid email address first");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(emailVerificationCode.trim())) {
+      toast.error("Enter the 6-digit code sent to your email");
+      return;
+    }
+
+    try {
+      setVerificationStatus("verifying");
+
+      const response = await axios.post("/api/auth/signup/verify-code", {
+        email: normalizedEmail,
+        code: emailVerificationCode.trim(),
+      });
+
+      if (!response.data?.success || !response.data?.verificationToken) {
+        setVerificationStatus("sent");
+        toast.error(response.data?.message || "Failed to verify email");
+        return;
+      }
+
+      setVerificationStatus("verified");
+      setVerificationToken(response.data.verificationToken);
+      setVerifiedEmail(normalizedEmail);
+      setEmailVerificationCode("");
+      toast.success("Email verified. You can now complete your account.");
+    } catch (error: any) {
+      setVerificationStatus("sent");
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to verify the code. Please try again."
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -164,13 +299,12 @@ function RegisterContent() {
     try {
       setLoading(true);
 
-      const normalizedEmail = formData.email.trim().toLowerCase();
-
       const signupResponse = await axios.post("/api/auth/signup", {
         name: formData.name.trim(),
         email: normalizedEmail,
         college: formData.college.trim(),
         password: formData.password,
+        verificationToken,
       });
 
       if (!signupResponse.data?.success) {
@@ -193,7 +327,7 @@ function RegisterContent() {
       } catch (loginError: any) {
         if (loginError?.response?.data?.isApprovalPending) {
           toast.success(
-            "Account created successfully. Your approval is still pending."
+            "Account created successfully. Join the WhatsApp group while approval is pending."
           );
           router.replace(getApprovalPendingPath());
           router.refresh();
@@ -324,14 +458,14 @@ function RegisterContent() {
                 Create Account
               </h2>
               <p className="mt-3 text-base text-gray-500">
-                Register as a participant and start building with your team.
+                Complete everything here on one form. Verify your email first, then create the account.
               </p>
             </div>
 
             {invitedEmail ? (
               <div className="mb-5 rounded-2xl border border-[#A01C33]/15 bg-[#A01C33]/[0.03] px-4 py-3 text-sm text-[#3B3C3E]">
-                You were invited using <strong>{invitedEmail}</strong>. Create your
-                account with this email to continue the team invite flow.
+                You were invited using <strong>{invitedEmail}</strong>. This email
+                must be verified before you continue the team invite flow.
               </div>
             ) : null}
 
@@ -357,25 +491,130 @@ function RegisterContent() {
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-semibold text-[#374151]"
-                >
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="student@college.edu"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="h-[52px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
-                  />
+              <div className="rounded-[24px] border border-[#eadfe3] bg-[linear-gradient(135deg,#fffdfb_0%,#fff7f6_100%)] p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="mt-2 text-lg font-bold text-[#1f2937]">
+                      Verify your email address
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      isEmailVerified
+                        ? "bg-green-100 text-green-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {isEmailVerified ? "Email Verified" : "Verification Required"}
+                  </span>
                 </div>
+
+                <div className="mt-5">
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-semibold text-[#374151]"
+                  >
+                    Email Address
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="relative flex-1">
+                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="student@college.edu"
+                        value={formData.email}
+                        onChange={handleChange}
+                        readOnly={isEmailVerified || isInvitedEmail}
+                        className="h-[52px] w-full rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10 read-only:bg-[#f8fafc]"
+                      />
+                    </div>
+
+                    {isEmailVerified ? (
+                      <button
+                        type="button"
+                        onClick={resetVerificationState}
+                        disabled={isInvitedEmail}
+                        className="h-[52px] rounded-2xl border border-gray-200 bg-white px-5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Change Email
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSendVerificationCode}
+                        disabled={
+                          verificationStatus === "sending" ||
+                          verificationStatus === "verifying" ||
+                          !isValidEmail(normalizedEmail) ||
+                          resendCooldown > 0
+                        }
+                        className="h-[52px] rounded-2xl bg-[#A01C33] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(160,28,51,0.18)] transition hover:bg-[#89172c] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {verificationStatus === "sending"
+                          ? "Sending..."
+                          : resendCooldown > 0
+                          ? `Resend in ${resendCooldown}s`
+                          : verificationStatus === "sent"
+                          ? "Resend OTP"
+                          : "Send OTP"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!isEmailVerified ? (
+                  <p className="mt-3 text-sm leading-6 text-gray-500">
+                    We will send a 6-digit OTP to this email. Verify it here, then create your account below.
+                  </p>
+                ) : (
+                  <div className="mt-4 flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Email verified successfully.
+                  </div>
+                )}
+
+                {showVerificationCodeInput ? (
+                  <div className="mt-5 rounded-2xl border border-[#eadfe3] bg-white p-4">
+                    <label
+                      htmlFor="verificationCode"
+                      className="mb-2 block text-sm font-semibold text-[#374151]"
+                    >
+                      Enter OTP
+                    </label>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        id="verificationCode"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="6-digit OTP"
+                        value={emailVerificationCode}
+                        onChange={(event) =>
+                          setEmailVerificationCode(
+                            event.target.value.replace(/\D/g, "").slice(0, 6)
+                          )
+                        }
+                        className="h-[52px] flex-1 rounded-2xl border border-gray-300 bg-white px-4 text-sm tracking-[0.3em] text-[#111827] outline-none transition focus:border-[#A01C33] focus:ring-4 focus:ring-[#A01C33]/10"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyCode}
+                        disabled={
+                          verificationStatus === "verifying" ||
+                          emailVerificationCode.trim().length !== 6
+                        }
+                        className="h-[52px] rounded-2xl border border-gray-200 bg-white px-5 text-sm font-semibold text-[#3B3C3E] transition hover:border-[#A01C33] hover:text-[#A01C33] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {verificationStatus === "verifying"
+                          ? "Verifying..."
+                          : "Verify Email"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -509,12 +748,21 @@ function RegisterContent() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={createAccountDisabled}
                 className="mt-2 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-[#A01C33] px-5 text-base font-semibold text-white shadow-[0_10px_22px_rgba(160,28,51,0.26)] transition hover:bg-[#89172c] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Creating Account..." : "Create Account"}
-                {!loading && <ArrowRight className="h-4 w-4" />}
+                {loading
+                  ? "Creating Account..."
+                  : isEmailVerified
+                  ? "Create Account"
+                  : "Verify Email To Continue"}
+                {!loading && isEmailVerified ? <ArrowRight className="h-4 w-4" /> : null}
               </button>
+
+              <div className="rounded-2xl border border-[#eadfe3] bg-[#fcfcfd] px-4 py-3 text-sm text-[#3B3C3E]">
+                After signup, you will land on the approval screen and can
+                join the participant WhatsApp group while admin approval is pending.
+              </div>
             </form>
 
             <div className="mt-8 text-center">

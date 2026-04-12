@@ -9,8 +9,8 @@ type TokenPayload = {
   role: UserRole;
 };
 
-// Validate JWT_SECRET is defined
 const jwtSecret = process.env.JWT_SECRET;
+
 if (!jwtSecret) {
   throw new Error("JWT_SECRET environment variable is not defined");
 }
@@ -26,9 +26,8 @@ async function verifyJWT(token: string): Promise<TokenPayload | null> {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
   const token = request.cookies.get("hacksphere_token")?.value;
 
   const isParticipantRoute = pathname.startsWith("/participant");
@@ -49,17 +48,15 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const userRole = decoded.role;
-
-  if (isParticipantRoute && userRole !== "participant") {
+  if (isParticipantRoute && decoded.role !== "participant") {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
-  if (isJudgeRoute && userRole !== "judge") {
+  if (isJudgeRoute && decoded.role !== "judge") {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
-  if (isAdminRoute && userRole !== "admin") {
+  if (isAdminRoute && decoded.role !== "admin") {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
@@ -69,3 +66,4 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/participant/:path*", "/judge/:path*", "/admin/:path*"],
 };
+

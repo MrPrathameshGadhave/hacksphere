@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import PublicHeader from "@/components/layout/PublicHeader";
 import Footer from "@/components/layout/Footer";
+import {
+  GuestOnly,
+  WorkspaceLink,
+} from "@/components/public/PublicAuthActions";
 
 const stages = [
   {
@@ -106,13 +110,16 @@ export default function AboutHackathonPage() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#A01C33] to-[#7e1428] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(160,28,51,0.22)] transition hover:-translate-y-0.5"
-                >
-                  Register Now
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                <GuestOnly>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#A01C33] to-[#7e1428] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(160,28,51,0.22)] transition hover:-translate-y-0.5"
+                  >
+                    Register Now
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </GuestOnly>
+                <WorkspaceLink className="inline-flex items-center rounded-full bg-gradient-to-r from-[#A01C33] to-[#7e1428] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(160,28,51,0.22)] transition hover:-translate-y-0.5" />
 
                 <Link
                   href="/problem-statements"
@@ -303,13 +310,16 @@ export default function AboutHackathonPage() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-[#A01C33] transition hover:bg-white/90"
-                >
-                  Register Now
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                <GuestOnly>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-[#A01C33] transition hover:bg-white/90"
+                  >
+                    Register Now
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </GuestOnly>
+                <WorkspaceLink className="inline-flex items-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-[#A01C33] transition hover:bg-white/90" />
 
                 <Link
                   href="/problem-statements"
